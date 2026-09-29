@@ -204,6 +204,8 @@ a.btn{text-decoration:none;display:inline-block;color:inherit}
 table{min-width:1080px}
 table.cov{min-width:720px}
 details.allow summary{cursor:pointer;color:var(--accent);font-weight:600}
+.allowset{min-width:220px;display:grid;gap:6px}
+.allowset details.allow summary{font-weight:500;white-space:nowrap}
 details.allow div{display:grid;gap:4px;margin-top:6px;max-height:180px;overflow:auto}
 details.allow label{display:flex;gap:6px;align-items:center;font-size:.85rem}
 .status{font-weight:600;font-size:.82rem;padding:2px 8px;border-radius:999px;background:var(--sunk)}
@@ -630,6 +632,30 @@ function timeFixPanel(){
     </div>
     <div class="row-actions"><button class="btn primary" data-act="tfapply" ${n?'':'disabled'}>Change the time of ${n} class${n===1?'':'es'}</button></div>
   </div>`;
+}
+
+/* "Who can teach": a course taught in more than one class type gets a separate list for each type,
+   so MBBS theory and MBBS practicals are set apart; a single-type course keeps its one list */
+function allowCell(c){
+  const used = [...new Set([...S.sessions.filter(s=>s.courseId===c.id).map(s=>s.type), ...Object.keys(c.allowedByType||{}).filter(t=>(c.allowedByType[t]||[]).length)])]
+    .filter(t=>S.types.some(x=>x.id===t)).sort((a,b)=>S.types.findIndex(x=>x.id===a)-S.types.findIndex(x=>x.id===b));
+  if(used.length<=1) return `<details class="allow" data-act="allowtoggle" data-id="${c.id}" ${ui.openAllow===c.id?'open':''}>
+        <summary>${c.allowed.length?c.allowed.length+' teacher'+(c.allowed.length===1?'':'s'):'Everyone'}${Object.keys(c.allowedByType||{}).filter(t=>(c.allowedByType[t]||[]).length).map(t=>`, ${esc(typeName(t).toLowerCase())} ${c.allowedByType[t].length}`).join('')}</summary>
+        <div>
+          <label style="flex-direction:column;align-items:flex-start;gap:4px">This list is for
+            <select data-ch="allowtype" data-id="${c.id}">
+              <option value="">every class type</option>
+              ${S.types.map(t=>`<option value="${t.id}" ${(ui.allowType||{})[c.id]===t.id?'selected':''}>${esc(t.name)} only</option>`).join('')}
+            </select></label>
+          ${(() => { const sc=(ui.allowType||{})[c.id]||''; const list = sc ? (c.allowedByType[sc]||[]) : c.allowed;
+            return S.faculty.map(f=>`<label><input type="checkbox" data-ch="allow" data-id="${c.id}" data-f="${f.id}" ${list.includes(f.id)?'checked':''}> ${esc(f.name)}</label>`).join(''); })()}
+        </div></details>`;
+  const n = k => k+' teacher'+(k===1?'':'s');
+  const box = (t, label, list, note) => `<details class="allow" data-act="allowtoggle" data-id="${c.id}|${t}" ${ui.openAllow===c.id+'|'+t?'open':''}>
+      <summary>${esc(label)}: ${note}</summary>
+      <div>${S.faculty.map(f=>`<label><input type="checkbox" data-ch="allow" data-id="${c.id}" data-t="${t}" data-f="${f.id}" ${list.includes(f.id)?'checked':''}> ${esc(f.name)}</label>`).join('')}</div></details>`;
+  return `<div class="allowset">`+used.map(t=>{ const l=c.allowedByType[t]||[]; return box(t, typeName(t), l, l.length?n(l.length):'follows course list'); }).join('')
+    + box('', 'Course list', c.allowed, c.allowed.length?n(c.allowed.length):'everyone') + `</div>`;
 }
 
 function tableHTML(from, to, list){
@@ -1097,7 +1123,7 @@ function viewSetup(){
   </div>
   <div class="panel">
     <h2>Courses and batches</h2>
-    <p class="lead">List batches separated by commas, for example A, B for 2nd Prof or A to L for 3rd Phase. Leave it empty for a course taught as one class. Under "Who can teach", tick names to limit a course to those teachers; with nobody ticked, everyone can take it. The dropdown inside keeps a separate list for one class type, so MBBS theory can go to the senior staff while tutors still take the practicals and tutorials. A list made for a type decides for that type on its own. Each course keeps its own term dates, because the calendars differ. Hour targets are written as "Practical 25; AETCOM 10", and the tool warns as they are reached.</p>
+    <p class="lead">List batches separated by commas, for example A, B for 2nd Prof or A to L for 3rd Phase. Leave it empty for a course taught as one class. Under "Who can teach", tick names to limit a course to those teachers; with nobody ticked, everyone can take it. A course taught in more than one class type shows a separate list for each type, so MBBS theory can go to the senior staff while tutors still take the practicals and tutorials. A type with its own list follows that list; a type left empty follows the course list. A course with one class type keeps a single list, and its dropdown can still set a list for one type. Each course keeps its own term dates, because the calendars differ. Hour targets are written as "Practical 25; AETCOM 10", and the tool warns as they are reached.</p>
     <div class="tbl-wrap"><table><thead><tr><th>Colour</th><th>Course name</th><th>Short name</th><th>Batches</th><th>Term starts</th><th>Term ends</th><th>Hour targets</th><th>Who can teach</th><th></th></tr></thead><tbody>
     ${S.courses.map(c=>`<tr>
       <td><input type="color" value="${c.color}" data-ch="course" data-id="${c.id}" data-f="color" aria-label="Colour"></td>
@@ -1107,17 +1133,7 @@ function viewSetup(){
       <td><input type="date" value="${c.termStart||''}" data-ch="course" data-id="${c.id}" data-f="termStart"></td>
       <td><input type="date" value="${c.termEnd||''}" data-ch="course" data-id="${c.id}" data-f="termEnd"></td>
       <td><input type="text" value="${esc(Object.entries(c.targets||{}).filter(([,h])=>+h).map(([t,h])=>typeName(t)+' '+h).join('; '))}" data-ch="course" data-id="${c.id}" data-f="targets" placeholder="e.g. Practical 25" style="min-width:140px"></td>
-      <td><details class="allow" data-act="allowtoggle" data-id="${c.id}" ${ui.openAllow===c.id?'open':''}>
-        <summary>${c.allowed.length?c.allowed.length+' teacher'+(c.allowed.length===1?'':'s'):'Everyone'}${Object.keys(c.allowedByType||{}).filter(t=>(c.allowedByType[t]||[]).length).map(t=>`, ${esc(typeName(t).toLowerCase())} ${c.allowedByType[t].length}`).join('')}</summary>
-        <div>
-          <label style="flex-direction:column;align-items:flex-start;gap:4px">This list is for
-            <select data-ch="allowtype" data-id="${c.id}">
-              <option value="">every class type</option>
-              ${S.types.map(t=>`<option value="${t.id}" ${(ui.allowType||{})[c.id]===t.id?'selected':''}>${esc(t.name)} only</option>`).join('')}
-            </select></label>
-          ${(() => { const sc=(ui.allowType||{})[c.id]||''; const list = sc ? (c.allowedByType[sc]||[]) : c.allowed;
-            return S.faculty.map(f=>`<label><input type="checkbox" data-ch="allow" data-id="${c.id}" data-f="${f.id}" ${list.includes(f.id)?'checked':''}> ${esc(f.name)}</label>`).join(''); })()}
-        </div></details></td>
+      <td>${allowCell(c)}</td>
       <td><button class="btn sm danger" data-act="delcourse" data-id="${c.id}">Delete</button></td></tr>`).join('')}
     </tbody></table></div>
     <div class="row-actions"><button class="btn" data-act="addcourse">Add course</button></div>
@@ -1692,11 +1708,11 @@ function change(c, el){
       }
       k.batches=nw; save(); break; }
     case 'allow': {
-      const k=S.courses.find(x=>x.id===id), sc=(ui.allowType||{})[id]||'';
+      const k=S.courses.find(x=>x.id===id), sc=el.dataset.t!=null ? el.dataset.t : ((ui.allowType||{})[id]||'');
       if(sc){ k.allowedByType = k.allowedByType||{}; const cur = k.allowedByType[sc]||[];
         k.allowedByType[sc] = el.checked ? [...new Set([...cur,f])] : cur.filter(x=>x!==f); }
       else k.allowed = el.checked ? [...new Set([...k.allowed,f])] : k.allowed.filter(x=>x!==f);
-      ui.openAllow=id; save(); break; }
+      ui.openAllow = el.dataset.t!=null ? id+'|'+el.dataset.t : id; save(); break; }
     case 'allowtype': { ui.allowType = ui.allowType||{}; ui.allowType[id] = el.value; ui.openAllow=id; break; }
     case 'bkcourse': ui.bkCourse = el.value; ui.bk = {f:document.getElementById('bk-f').value, t:document.getElementById('bk-t').value, r:document.getElementById('bk-r').value}; break;
     case 'covtopic': ui.covTopic = el.value; break;
