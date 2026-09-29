@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<base target="_top">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Department Teaching Roster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F4F1;--surface:#FFFFFF;--sunk:#E9EDE9;--ink:#17262A;--muted:#5B6B6E;--line:#D6DDD8;
+  --accent:#1F5C4F;--accent-ink:#FFFFFF;--warn:#B3261E;--warn-bg:#FBE9E7;--hol:#FFF3D1;--hol-ink:#7A5A00;
+  --r-sm:6px;--r:10px;
+  font-family:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color:var(--ink);background:var(--bg);font-size:15px;line-height:1.45;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111A1B;--surface:#192426;--sunk:#152022;--ink:#E5ECEA;--muted:#98AAA7;--line:#2C3B3D;
+  --accent:#5FB39B;--accent-ink:#0E1A18;--warn:#F2867D;--warn-bg:#3A1F1C;--hol:#3A3214;--hol-ink:#F0D27A;}}
+:root[data-theme="dark"]{--bg:#111A1B;--surface:#192426;--sunk:#152022;--ink:#E5ECEA;--muted:#98AAA7;--line:#2C3B3D;
+  --accent:#5FB39B;--accent-ink:#0E1A18;--warn:#F2867D;--warn-bg:#3A1F1C;--hol:#3A3214;--hol-ink:#F0D27A;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1240px;margin:0 auto;padding:20px 20px 60px}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:16px;border-bottom:2px solid var(--ink)}
+.brand h1{margin:0;font-size:1.6rem;font-weight:700;letter-spacing:-.01em}
+.brand p{margin:2px 0 0;color:var(--muted)}
+.clerk{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);cursor:pointer;user-select:none}
+.clerk input{width:34px;height:20px;appearance:none;background:var(--line);border-radius:999px;position:relative;cursor:pointer;margin:0;transition:background .15s}
+.clerk input::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--surface);transition:left .15s}
+.clerk input:checked{background:var(--accent)}
+.clerk input:checked::after{left:17px}
+
+.tabs{display:flex;gap:4px;margin:14px 0 18px;overflow-x:auto}
+.tabs button{border:0;background:none;padding:8px 14px;border-radius:var(--r-sm);cursor:pointer;color:var(--muted);font-weight:600;white-space:nowrap}
+.tabs button[aria-current="true"]{background:var(--ink);color:var(--bg)}
+
+.notice{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:16px;color:var(--muted)}
+.notice b{color:var(--ink)}
+
+/* course switch */
+.courses{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.courses button{--c:var(--ink);border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px 6px 10px;cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:500}
+.courses button::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--c)}
+.courses button[aria-pressed="true"]{border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,var(--surface));font-weight:600}
+.courses .all::before{background:conic-gradient(#2F6F5E 0 33%,#3D5A99 0 66%,#A8662B 0)}
+
+/* toolbar */
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.bar .grow{flex:1}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:7px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn{border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.danger{color:var(--warn)}
+.btn.sm{padding:3px 8px;font-size:.85rem}
+select,input[type=text],input[type=date],input[type=time],input[type=number]{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-sm);padding:6px 8px;min-width:0}
+.period{font-weight:700;font-size:1.1rem;min-width:200px}
+
+.stats{display:flex;gap:22px;flex-wrap:wrap;margin:0 0 14px;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.stats div{color:var(--muted)}
+.stats b{color:var(--ink);font-size:1.15rem;margin-right:4px;font-variant-numeric:tabular-nums}
+.stats .bad b{color:var(--warn)}
+
+.legend{display:flex;gap:16px;align-items:center;color:var(--muted);font-size:.85rem;margin-left:auto}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:22px;height:12px;border-radius:3px;border-left:3px solid var(--muted);background:color-mix(in srgb,var(--muted) 20%,var(--surface))}
+.sw.p{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--muted) 28%,var(--surface)) 0 3px,var(--surface) 3px 6px)}
+
+/* table */
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;min-width:820px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+thead th{font-size:.82rem;color:var(--muted);font-weight:600;background:var(--sunk);position:sticky;top:0}
+tr.day td{background:var(--sunk);font-weight:700;padding-top:12px}
+tr.day .hol{font-weight:600;color:var(--hol-ink);background:var(--hol);padding:2px 8px;border-radius:999px;margin-left:8px;font-size:.82rem}
+tr.day .count{font-weight:500;color:var(--muted);margin-left:8px;font-size:.85rem}
+td.time{font-variant-numeric:tabular-nums;white-space:nowrap}
+.cc{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.cc i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.kind{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.8rem;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 16%,var(--surface))}
+.kind.practical{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--c) 24%,var(--surface)) 0 3px,var(--surface) 3px 6px)}
+.teacher{font-weight:600}
+.unassigned{color:var(--warn);background:var(--warn-bg);padding:2px 8px;border-radius:4px;font-weight:600;font-size:.85rem}
+.lock{border:0;background:none;cursor:pointer;padding:2px 4px;border-radius:4px;color:var(--muted)}
+.lock[aria-pressed="true"]{color:var(--accent)}
+td input[type=text]{width:100%}
+td select{max-width:220px}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:1.05rem;margin-bottom:4px}
+
+/* calendar */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--line);gap:1px}
+.cal .h{background:var(--sunk);padding:6px 8px;font-size:.82rem;color:var(--muted);font-weight:600}
+.cell{background:var(--surface);min-height:118px;padding:6px;display:flex;flex-direction:column;gap:4px}
+.cell.out{background:var(--sunk)}
+.cell.out .chip,.cell.out .dn{opacity:.45}
+.cell.today .dn{background:var(--ink);color:var(--bg)}
+.cell.holi{background:var(--hol)}
+.dn{font-weight:700;font-size:.85rem;width:24px;height:24px;display:grid;place-items:center;border-radius:50%}
+.hn{font-size:.75rem;color:var(--hol-ink);font-weight:600}
+.chip{font-size:.76rem;line-height:1.3;padding:3px 6px;border-radius:4px;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 16%,var(--surface))}
+.chip.practical{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--c) 24%,var(--surface)) 0 3px,var(--surface) 3px 6px)}
+.chip b{font-weight:600}
+.chip .who{display:block;color:var(--ink)}
+.chip.none .who{color:var(--warn);font-weight:600}
+.dl{display:none}
+
+/* forms / setup */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:18px}
+.panel h2{margin:0 0 4px;font-size:1.15rem}
+.panel > p.lead{margin:0 0 14px;color:var(--muted);max-width:75ch}
+.grid-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+.grid-form label,.field{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted);font-weight:500}
+.batches{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.batches label{flex-direction:row;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--ink);cursor:pointer}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.leaves{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:4px;background:var(--sunk);border-radius:999px;padding:2px 4px 2px 10px;font-size:.8rem}
+.pill button{border:0;background:none;cursor:pointer;color:var(--muted);padding:0 4px}
+.help{color:var(--muted);font-size:.9rem;max-width:75ch}
+.help li{margin-bottom:4px}
+input[type=color]{width:38px;height:32px;border:1px solid var(--line);border-radius:var(--r-sm);padding:2px;background:var(--surface)}
+
+/* workload */
+.meter{height:8px;background:var(--sunk);border-radius:999px;position:relative;min-width:120px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:999px}
+.meter s{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.diff{font-variant-numeric:tabular-nums;font-weight:600}
+.diff.over{color:var(--warn)}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:var(--r-sm);font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10;max-width:90vw}
+.toast.show{opacity:1}
+.print-title{display:none}
+
+
+/* v2 additions */
+.away{display:inline-block;margin-left:6px;font-size:.78rem;font-weight:600;color:var(--hol-ink);background:var(--hol);padding:1px 7px;border-radius:999px}
+tr.isaway td{opacity:.6}
+.bn{font-size:.72rem;color:var(--hol-ink);background:var(--hol);border-radius:4px;padding:2px 5px;font-weight:600}
+.codes{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.code{font-size:.76rem;font-weight:600;background:var(--sunk);border:1px solid var(--line);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.code button{border:0;background:none;cursor:pointer;color:var(--muted);padding:0 0 0 4px}
+dialog{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--ink);padding:0;width:min(720px,94vw);max-height:88vh}
+dialog::backdrop{background:rgba(10,20,20,.45)}
+.dlg-h{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+.dlg-h h2{margin:0;font-size:1.1rem}
+.dlg-b{padding:14px 18px;overflow:auto;max-height:calc(88vh - 130px)}
+.dlg-f{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--line)}
+.clist{border:1px solid var(--line);border-radius:var(--r-sm);max-height:48vh;overflow:auto;margin-top:10px}
+.clist label{display:flex;gap:10px;align-items:flex-start;padding:7px 10px;border-bottom:1px solid var(--line);cursor:pointer}
+.clist label:last-child{border-bottom:0}
+.clist label b{min-width:64px}
+.clist .tp{color:var(--muted);font-size:.8rem}
+:root{--ok:#1E7B3A;--ok-bg:#DDF2E2;--bad:#B3261E;--bad-bg:#FBE1DD}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ok:#7FD89A;--ok-bg:#173623;--bad:#F2867D;--bad-bg:#40201C}}
+:root[data-theme="dark"]{--ok:#7FD89A;--ok-bg:#173623;--bad:#F2867D;--bad-bg:#40201C}
+.cov td.done{background:var(--ok-bg);color:var(--ok);font-weight:600;white-space:nowrap}
+.cov td.plan,.cov td.pend{background:var(--bad-bg);color:var(--bad);font-weight:600;white-space:nowrap}
+.cov td.plan small{display:block;font-weight:500}
+.stats .ok b{color:var(--ok)} .stats .bad2 b{color:var(--bad)}
+.clist label.ok{border-left:4px solid var(--ok);background:var(--ok-bg)}
+.clist label.bad{border-left:4px solid var(--bad);background:var(--bad-bg)}
+.clist .st{margin-left:auto;white-space:nowrap;font-size:.8rem;font-weight:700;padding-left:10px}
+.clist label.ok .st{color:var(--ok)} .clist label.bad .st{color:var(--bad)}
+.nh{display:inline-block;margin-left:6px;font-size:.76rem;font-weight:700;color:var(--bad);background:var(--bad-bg);padding:1px 7px;border-radius:999px}
+tr.isnotheld td{opacity:.7}
+table.wide{min-width:1480px}
+table.wide td input[type=text]{min-width:150px}
+.acts{display:flex;flex-wrap:wrap;gap:4px;min-width:170px}
+input.dup{border-color:var(--bad);background:var(--bad-bg)}
+.notice.alert{border-left-color:var(--bad);color:var(--ink)}
+.notice .row-actions{margin-top:8px}
+.moved{display:inline-block;margin-left:6px;font-size:.76rem;font-weight:600;color:var(--muted);background:var(--sunk);border:1px dashed var(--line);padding:1px 7px;border-radius:999px;cursor:help}
+.checks{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:6px}
+.checks li{padding:7px 10px;border-radius:var(--r-sm);font-size:.9rem}
+.checks li.stop{background:var(--bad-bg);color:var(--bad);font-weight:600}
+.checks li.warn{background:var(--hol);color:var(--hol-ink)}
+.checks li.fine{background:var(--ok-bg);color:var(--ok)}
+.imp-sum{display:flex;gap:18px;flex-wrap:wrap;margin:4px 0 12px}
+.imp-sum b{font-size:1.2rem;margin-right:4px}
+.skips{border:1px solid var(--line);border-radius:var(--r-sm);max-height:220px;overflow:auto;padding:6px 10px;margin:0;list-style:none}
+.skips li{padding:4px 0;border-bottom:1px solid var(--line);color:var(--bad)}
+.skips li:last-child{border-bottom:0}
+.cov td.ctext{min-width:260px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
+.card h3{margin:0;font-size:1rem}
+.card textarea,.dlg-b textarea{width:100%;min-height:190px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--sunk);padding:8px;font:inherit;font-size:.86rem;resize:vertical;color:var(--ink)}
+a.btn{text-decoration:none;display:inline-block;color:inherit}
+.cc{white-space:nowrap}
+.cov td:first-child{white-space:nowrap}
+table{min-width:1080px}
+table.cov{min-width:720px}
+details.allow summary{cursor:pointer;color:var(--accent);font-weight:600}
+details.allow div{display:grid;gap:4px;margin-top:6px;max-height:180px;overflow:auto}
+details.allow label{display:flex;gap:6px;align-items:center;font-size:.85rem}
+.status{font-weight:600;font-size:.82rem;padding:2px 8px;border-radius:999px;background:var(--sunk)}
+.status.Accepted{color:var(--accent)}
+.status.Declined{color:var(--warn)}
+.scroll{max-height:380px;overflow:auto}
+
+@media (max-width:760px){
+  .cal{grid-template-columns:1fr}
+  .cal .h{display:none}
+  .cell{min-height:0}
+  .cell.out,.cell.blank{display:none}
+  .dl{display:inline;margin-left:6px;font-weight:600;font-size:.85rem}
+  .legend{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{
+  :root{--bg:#fff;--surface:#fff;--sunk:#f1f1f1}
+  .top .clerk,.tabs,.bar,.courses,.notice,.no-print,.lock{display:none!important}
+  .print-title{display:block;margin:0 0 8px;font-size:1.1rem}
+  .wrap{padding:0}
+  .tbl-wrap{border:0;overflow:visible}
+  table{min-width:0;font-size:11px}
+  .cell{min-height:90px}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+window.addEventListener('error', function(e){
+  var el = document.getElementById('app');
+  if(el && !el.dataset.ok) el.innerHTML = '<div class="panel"><h2>The page could not start</h2><p class="lead">' +
+    String((e && e.message) || 'Unknown error') + '</p><p class="help">Send this line to Dr Chhabra.</p></div>';
+});
+setTimeout(function(){
+  var el = document.getElementById('app');
+  if(el && !el.dataset.ok && !el.innerHTML.trim()) el.innerHTML =
+    '<div class="panel"><h2>Nothing came back</h2><p class="lead">The page loaded but the roster did not arrive. Reload once. If it stays empty, open the link in a window signed in only to the department account.</p></div>';
+}, 12000);
+</script>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="importFile" accept=".xlsx,.xls,.json" hidden>
+<input type="file" id="importComps" accept=".xlsx,.xls,.csv" hidden>
+<input type="file" id="importContacts" accept=".xlsx,.xls,.csv" hidden>
+<dialog id="dlg"></dialog>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+
+
+/* ============ helpers ============ */
+const KEY = 'dept-roster-draft-v1';
+const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const pad = n => String(n).padStart(2,'0');
+const iso = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
+const addDays = (s,n) => { const d = parse(s); d.setDate(d.getDate()+n); return iso(d); };
+const dow = s => (parse(s).getDay()+6)%7;
+const monday = s => addDays(s,-dow(s));
+const nice = (s,o) => parse(s).toLocaleDateString('en-IN', o || {weekday:'short',day:'numeric',month:'short'});
+const dmy = s => s ? s.split('-').reverse().join('-') : '';
+const mins = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+const t12 = t => { let [h,m] = t.split(':').map(Number); const ap = h>=12?'pm':'am'; h = h%12||12; return h+':'+pad(m)+' '+ap; };
+const uid = () => Math.random().toString(36).slice(2,10);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let TODAY = iso(new Date());
+const nowMin = () => { const d = new Date(); return d.getHours()*60 + d.getMinutes(); };
+/* a class is over once its end time has passed; it counts as held unless marked not held */
+const isOver = s => s.date < TODAY || (s.date === TODAY && mins(s.end) <= nowMin());
+const isHeld = s => !s.notHeld && isOver(s);
+const CKEY = 'dept-roster-contacts-v1';
+
+let S = null;
+const ui = { tab:'roster', view:'table', course:'all', type:'all', teacher:'all', anchor:TODAY, edit:false,
+  pf:{}, pfComps:[], wlRange:'term', covTopic:'all', covQ:'', covPending:false, msgWeek:addDays(monday(TODAY),7),
+  swapFilter:'all', compQ:'', openAllow:null, dlg:null, msgs:[] };
+
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 3000); }
+let ME = {email:'', name:'', facultyId:'', isOffice:false, prefs:{weekly:true,daily:true,swaps:true}};
+let REV = 0, SHEET_URL = '', dirty = false, saveTimer = null, saveState = '';
+function setState(t){ saveState = t; const el = document.getElementById('savestate'); if(el) el.textContent = t; }
+function writeLocal(){}
+function save(){
+  if(!ME.isOffice) return;
+  S.meta = S.meta || {}; S.meta.editedAt = new Date().toISOString();
+  dirty = true; setState('Saving');
+  clearTimeout(saveTimer); saveTimer = setTimeout(pushSave, 700);
+}
+function pushSave(){
+  if(!ME.isOffice || !dirty) return;
+  dirty = false;
+  RT.save(S).then(n => { setState(n ? 'Saved' : ''); setTimeout(()=>{ if(!dirty) setState(''); }, 2000); })
+    .catch(e => { dirty = true; setState('Not saved'); toast(e.message || 'Could not save. Try again.'); });
+}
+function reload(){
+  setState('Loading');
+  RT.reload().then(()=>setState('')).catch(e=>toast(e.message||'Could not load'));
+}
+/* called when someone else changes the roster */
+function remoteUpdate(data){
+  if(dirty) return;
+  S = normalize(data);
+  if(!ui.dlg) render();
+}
+/* phone numbers and emails stay in this browser only; they are never written into the published file */
+function saveContacts(){}
+function readContacts(){ return {}; }
+function applyContacts(){}
+window.addEventListener('beforeunload', e => { if(dirty){ pushSave(); e.preventDefault(); e.returnValue=''; } });
+setInterval(()=>{ const t = iso(new Date()); if(t!==TODAY){ TODAY=t; if(S && !ui.dlg) render(); } }, 60000);
+function download(name, text, type){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text],{type})); a.download = name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 500); }
+async function copyText(t){ try{ await navigator.clipboard.writeText(t); toast('Copied'); }catch(e){ const x=document.createElement('textarea'); x.value=t; document.body.appendChild(x); x.select(); try{document.execCommand('copy'); toast('Copied');}catch(_){toast('Select the text and copy it by hand');} x.remove(); } }
+const waLink = (phone,text) => { let d = String(phone||'').replace(/\D/g,''); if(d.length===10) d='91'+d; return `https://wa.me/${d}?text=${encodeURIComponent(text)}`; };
+const mailLink = (email,subject,body) => `mailto:${encodeURIComponent(email||'')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+const DEFAULT_TYPES = [
+  {id:'theory', name:'Theory', style:'solid'},
+  {id:'practical', name:'Practical', style:'hatch'},
+  {id:'tutorial', name:'Tutorial', style:'hatch'},
+  {id:'seminar', name:'Seminar', style:'hatch'},
+  {id:'aetcom', name:'AETCOM', style:'solid'},
+  {id:'integrated', name:'Integrated teaching', style:'solid'}
+];
+function normalize(d){
+  d.settings = d.settings || {}; d.ranks = d.ranks || []; d.faculty = d.faculty || []; d.courses = d.courses || [];
+  d.sessions = d.sessions || []; d.holidays = d.holidays || []; d.blocks = d.blocks || []; d.competencies = d.competencies || []; d.swaps = d.swaps || [];
+  d.types = (d.types && d.types.length) ? d.types : DEFAULT_TYPES.map(t=>({...t}));
+  d.rotations = d.rotations || [];
+  d.ranks.forEach(r=>{ if(!r.w){ r.w = {}; d.types.forEach(t=>r.w[t.id] = +r[t.id]||0); } d.types.forEach(t=>{ if(r.w[t.id]==null) r.w[t.id]=0; }); });
+  d.holidays.forEach(h=>{ h.from = h.from || h.date || ''; h.to = h.to || h.from; delete h.date; });
+  d.faculty.forEach(f=>{ f.leaves=f.leaves||[]; f.phone=f.phone||''; f.email=f.email||''; });
+  d.courses.forEach(c=>{ c.batches=c.batches||[]; c.allowed=c.allowed||[]; c.targets=c.targets||{}; c.termStart=c.termStart||''; c.termEnd=c.termEnd||''; });
+  d.sessions.forEach(s=>{ s.comps=s.comps||[]; s.topic=s.topic||''; s.venue=s.venue||''; s.history=s.history||[]; s.notHeld=!!s.notHeld; });
+  d.meta = d.meta || {};
+  return d;
+}
+
+const course = id => S.courses.find(c=>c.id===id) || {name:'(deleted course)',short:'?',color:'#888',batches:[],allowed:[]};
+const person = id => S.faculty.find(f=>f.id===id);
+const sess = id => S.sessions.find(s=>s.id===id);
+const rankOf = f => S.ranks.find(r=>r.id===f.rank);
+const weight = (f,type) => { const r = rankOf(f); return r && r.w ? (+r.w[type]||0) : 0; };
+const typeOf = id => S.types.find(t=>t.id===id) || {id, name:id, style:'hatch'};
+const typeName = id => typeOf(id).name;
+const hoursOf = s => Math.max(0, mins(s.end)-mins(s.start))/60;
+const hSum = list => list.reduce((a,s)=>a+hoursOf(s), 0);
+/* a class can be taken by one batch, by several batches together (stored as I+J), or by the whole class */
+const bats = s => s.batch==='All' ? ['All'] : String(s.batch).split('+').map(x=>x.trim()).filter(Boolean);
+const batsLabel = s => s.batch==='All' ? 'Whole class' : (bats(s).length>1 ? 'Batches '+bats(s).join(', ') : 'Batch '+s.batch);
+const batsLower = s => s.batch==='All' ? 'whole class' : (bats(s).length>1 ? 'batches '+bats(s).join(', ') : 'batch '+s.batch);
+const holiday = date => S.holidays.find(h => date>=h.from && date<=(h.to||h.from));
+const termOf = cid => { const c = course(cid); return {from: c.termStart || S.settings.termStart || '', to: c.termEnd || S.settings.termEnd || ''}; };
+const rotationsFor = cid => S.rotations.filter(r=>r.courseId===cid);
+const rotationOn = (rot, date) => rot && rot.entries.find(e => date>=e.from && date<=(e.to||e.from));
+const onLeave = (f,date) => (f.leaves||[]).some(l => date>=l.from && date<=(l.to||l.from));
+const overlaps = (a,b) => a.date===b.date && mins(a.start)<mins(b.end) && mins(b.start)<mins(a.end);
+const busy = (fid,s) => S.sessions.some(x => x.id!==s.id && x.facultyId===fid && overlaps(x,s));
+const allowed = (f,courseId) => { const c = course(courseId); return !c.allowed || !c.allowed.length || c.allowed.includes(f.id); };
+/* a batch is away when a block covers its course, the date, and either that batch or the whole class */
+const awayBlock = (courseId,batch,date) => S.blocks.find(b => b.courseId===courseId && date>=b.from && date<=(b.to||b.from) && (b.batches.includes('All') || b.batches.includes(batch)));
+const away = s => bats(s).map(b=>awayBlock(s.courseId, b, s.date)).find(Boolean);
+const byTime = (a,b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start) || course(a.courseId).name.localeCompare(course(b.courseId).name) || String(a.batch).localeCompare(String(b.batch), undefined, {numeric:true});
+const inTerm = s => { const t = termOf(s.courseId); return (!t.from || s.date>=t.from) && (!t.to || s.date<=t.to); };
+const batchLabel = b => b==='All' ? 'Whole class' : 'Batch '+b;
+const batchLower = b => b==='All' ? 'whole class' : 'batch '+b;
+const describe = s => { const c = course(s.courseId); return `${nice(s.date)}, ${t12(s.start)} to ${t12(s.end)}, ${c.short} ${typeName(s.type)}, ${batsLower(s)}`; };
+const blocksLabel = b => `${course(b.courseId).short} ${b.batches.includes('All')?'whole class':b.batches.join(', ')} away: ${b.reason}`;
+
+/* ============ sample data ============ */
+function sample(){
+  const types = DEFAULT_TYPES.map(t=>({...t}));
+  const W = (th,pr,tu,se,ae,it) => ({theory:th, practical:pr, tutorial:tu, seminar:se, aetcom:ae, integrated:it});
+  const ranks = [
+    {id:'prof', name:'Professor', w:W(3,1,2,2,2,2)},
+    {id:'assoc',name:'Associate Professor', w:W(3,2,2,2,2,2)},
+    {id:'asst', name:'Assistant Professor', w:W(2,3,3,2,3,2)},
+    {id:'sr',   name:'Senior Resident', w:W(0,3,3,1,1,1)},
+    {id:'jr',   name:'Junior Resident / Tutor', w:W(0,2,2,0,0,0)}
+  ];
+  const faculty = [
+    ['Dr R. K. Mehta','prof'],['Dr S. Negi','prof'],['Dr A. Rawat','assoc'],['Dr P. Bisht','assoc'],
+    ['Dr N. Joshi','asst'],['Dr K. Thapliyal','asst'],['Dr M. Semwal','asst'],
+    ['Dr V. Kandari','sr'],['Dr T. Pant','sr'],['Dr D. Dobhal','jr']
+  ].map(([name,rank]) => ({id:uid(), name, rank, active:true, leaves:[], phone:'', email:''}));
+  const L12 = ['A','B','C','D','E','F','G','H','I','J','K','L'];
+  const courses = [
+    {id:'mb2',  name:'MBBS 2nd Prof (Batch 2025)', short:'MBBS II', color:'#2F7A64', batches:['A','B'], allowed:[], termStart:'2026-09-01', termEnd:'2027-08-05', targets:{practical:25}},
+    {id:'mb3',  name:'MBBS 3rd Phase Part I (Batch 2024)', short:'MBBS III', color:'#3D5A99', batches:L12, allowed:[], termStart:'2026-09-24', termEnd:'2027-08-02', targets:{aetcom:10}},
+    {id:'mrit', name:'B.MRIT 1st Semester (Batch 2026)', short:'B.MRIT', color:'#A8662B', batches:[], allowed:[], termStart:'2026-08-10', termEnd:'2027-01-31', targets:{}},
+    {id:'rtt',  name:'B.RTT 1st Semester (Batch 2026)', short:'B.RTT', color:'#6B5B95', batches:[], allowed:[], termStart:'2026-08-10', termEnd:'2027-01-31', targets:{}}
+  ];
+  const holidays = [
+    {from:'2026-10-02', to:'2026-10-02', name:'Gandhi Jayanti'},
+    {from:'2026-11-05', to:'2026-11-11', name:'Deepawali vacation'},
+    {from:'2027-01-26', to:'2027-01-26', name:'Republic Day'},
+    {from:'2027-03-21', to:'2027-03-28', name:'Holi vacation'}
+  ];
+  /* course-specific weeks when the class is away: exams, revision and summer vacation */
+  const B = (c,from,to,reason) => ({id:uid(), courseId:c, batches:['All'], from, to, reason});
+  const blocks = [
+    B('mb2','2027-01-07','2027-01-13','1st sessional examination'),
+    B('mb2','2027-04-07','2027-04-16','Clinical sessional examination'),
+    B('mb2','2027-06-01','2027-06-15','Summer vacation'),
+    B('mb2','2027-06-23','2027-07-01','2nd sessional examination'),
+    B('mb3','2027-01-11','2027-01-16','1st sessional examination'),
+    B('mb3','2027-04-21','2027-04-29','Clinical sessional examination'),
+    B('mb3','2027-06-07','2027-06-15','2nd sessional examination'),
+    B('mb3','2027-06-16','2027-06-30','Summer vacation')
+  ];
+  const rotations = [
+    {id:'rot-ortho', courseId:'mb3', name:'Orthopaedics posting group', entries:[
+      {from:'2026-09-24', to:'2026-10-06', batches:['I','J']},
+      {from:'2026-10-07', to:'2026-10-21', batches:['K','L']},
+      {from:'2026-10-22', to:'2026-11-04', batches:['A','B']},
+      {from:'2026-11-05', to:'2026-11-26', batches:['C','D']},
+      {from:'2026-11-27', to:'2026-12-11', batches:['E','F']},
+      {from:'2026-12-12', to:'2026-12-26', batches:['G','H']}
+    ]},
+    {id:'rot-psy', courseId:'mb3', name:'Psychiatry posting group', entries:[
+      {from:'2026-12-27', to:'2027-01-09', batches:['L']}, {from:'2027-01-10', to:'2027-01-29', batches:['K']},
+      {from:'2027-01-30', to:'2027-02-12', batches:['J']}, {from:'2027-02-13', to:'2027-02-26', batches:['I']},
+      {from:'2027-02-27', to:'2027-03-12', batches:['H']}, {from:'2027-03-13', to:'2027-04-03', batches:['G']},
+      {from:'2027-04-04', to:'2027-04-17', batches:['F']}, {from:'2027-04-18', to:'2027-05-10', batches:['E']},
+      {from:'2027-05-11', to:'2027-05-24', batches:['D']}, {from:'2027-05-25', to:'2027-07-02', batches:['C']},
+      {from:'2027-07-03', to:'2027-07-17', batches:['B']}, {from:'2027-07-18', to:'2027-08-02', batches:['A']}
+    ]}
+  ];
+  const competencies = [
+    {code:'AETCOM 2.6', topic:'AETCOM modules', text:'Module 2.6, taken by Forensic Medicine for MBBS 3rd Phase Part I (5 sessions)'},
+    {code:'AETCOM 3.4', topic:'AETCOM modules', text:'Module 3.4, taken by Forensic Medicine for MBBS 3rd Phase Part I (5 sessions)'}
+  ];
+  S = normalize({ settings:{dept:'Department of Forensic Medicine & Toxicology', inst:'Himalayan Institute of Medical Sciences, SRHU',
+      termStart:'2026-09-01', termEnd:'2027-08-05', clerkPhone:'', clerkEmail:'', pinHash:''},
+      types, ranks, faculty, courses, sessions:[], holidays, blocks, rotations, competencies, swaps:[], meta:{} });
+
+  const mk = (o) => { const s = {id:uid(), comps:[], topic:'', venue:'', facultyId:'', locked:false, history:[], notHeld:false, ...o};
+    if(holiday(s.date) || away(s) || !inTerm(s)) return; S.sessions.push(s); };
+  /* every week, every second week, or on given dates */
+  const series = (from, to, step, fn) => { for(let d=from; d<=to; d=addDays(d, 7*step)) fn(d); };
+
+  const t2 = termOf('mb2'), t3 = termOf('mb3'), tA = termOf('mrit');
+  /* MBBS 2nd Prof: Saturday theory, and the Friday practical with A and B on alternate weeks */
+  series('2026-09-05', t2.to, 1, d => mk({date:d, start:'09:00', end:'10:00', courseId:'mb2', type:'theory', batch:'All', venue:'LT-2'}));
+  /* the Friday slot is ours for 25 hours, then Microbiology takes it over, so it stops at the target */
+  { let hrs = 0, turn = 0;
+    for(let d='2026-09-04'; d<=t2.to && hrs+2<=(course('mb2').targets.practical||25); d=addDays(d,7)){
+      const before = S.sessions.length;
+      mk({date:d, start:'14:00', end:'16:00', courseId:'mb2', type:'practical', batch:turn%2?'B':'A', venue:'FMT Practical Lab'});
+      if(S.sessions.length>before){ hrs += 2; turn++; }
+    } }
+  /* MBBS 3rd Phase: Monday and Thursday theory */
+  series('2026-09-28', t3.to, 1, d => mk({date:d, start:'09:00', end:'10:00', courseId:'mb3', type:'theory', batch:'All', venue:'Charak HLT-01'}));
+  series('2026-09-24', t3.to, 1, d => mk({date:d, start:'08:00', end:'09:00', courseId:'mb3', type:'theory', batch:'All', venue:'Charak HLT-01'}));
+  /* AETCOM, Tuesday 8 to 9 am, on the dates in the circular */
+  [['2026-09-29','AETCOM 2.6'],['2026-10-06','AETCOM 2.6'],['2026-10-13','AETCOM 2.6'],['2026-10-20','AETCOM 2.6'],['2026-10-27','AETCOM 2.6'],
+   ['2027-03-09','AETCOM 3.4'],['2027-03-16','AETCOM 3.4'],['2027-03-30','AETCOM 3.4'],['2027-04-06','AETCOM 3.4'],['2027-04-13','AETCOM 3.4']]
+   .forEach(([d,code]) => mk({date:d, start:'08:00', end:'09:00', courseId:'mb3', type:'aetcom', batch:'All', topic:'AETCOM module '+code.split(' ')[1], comps:[code], venue:'Charak HLT-01'}));
+  /* afternoon tutorial for the batches on posting with us: every day except Sunday */
+  for(let d='2026-09-24'; d<=t3.to; d=addDays(d,1)){
+    if(dow(d)===6) continue;
+    const o = rotationOn(S.rotations[0], d), ps = rotationOn(S.rotations[1], d);
+    if(o) mk({date:d, start:'14:00', end:'17:00', courseId:'mb3', type:'tutorial', batch:o.batches.join('+'), venue:'FMT Seminar Room'});
+    else if(ps) mk({date:d, start:'14:00', end:'16:00', courseId:'mb3', type:'tutorial', batch:ps.batches.join('+'), venue:'FMT Seminar Room'});
+  }
+  /* Medical Law and Ethics for the allied health courses */
+  series('2026-08-10', tA.to, 1, d => mk({date:d, start:'14:00', end:'15:00', courseId:'mrit', type:'theory', batch:'All', topic:'Medical law and ethics', venue:'Allied Health LT'}));
+  series('2026-08-10', tA.to, 1, d => mk({date:d, start:'10:00', end:'11:00', courseId:'rtt', type:'theory', batch:'All', topic:'Medical law and ethics', venue:'Allied Health LT'}));
+  series('2026-08-10', tA.to, 1, d => mk({date:d, start:'14:00', end:'15:00', courseId:'rtt', type:'theory', batch:'All', topic:'Medical law and ethics', venue:'Allied Health LT'}));
+
+  normalize(S); S.meta = {};
+  autoAssign(S.sessions, 'fill');
+  return S;
+}
+
+/* ============ the assignment engine ============
+   Every class is shared out in hours. For each class the engine works out what each
+   eligible person was due (their rank's ratio for that class type, against everyone
+   else who could have taken it that day), then gives the class to whoever is furthest
+   behind what they were due. It skips: holidays, batches that are away, people on
+   leave or already teaching at that hour, and people not on the course's teacher list. */
+function eligibleFor(s){
+  return S.faculty.filter(f => f.active!==false && weight(f,s.type)>0 && allowed(f,s.courseId) && !onLeave(f,s.date));
+}
+function autoAssign(list, mode){
+  const targets = list.filter(s => !s.locked && !holiday(s.date) && !away(s)).sort(byTime);
+  if(mode==='redo') targets.forEach(s => s.facultyId='');
+  const hrs = {}, exp = {}, day = {};
+  S.faculty.forEach(f => { hrs[f.id]=0; exp[f.id]=0; day[f.id]={}; });
+  const expect = s => { const el = eligibleFor(s), sw = el.reduce((a,f)=>a+weight(f,s.type),0);
+    if(sw) el.forEach(f => exp[f.id] += hoursOf(s)*weight(f,s.type)/sw); };
+  /* what has already been given out this term */
+  for(const s of S.sessions){
+    if(!inTerm(s) || s.notHeld) continue;
+    if(s.facultyId && hrs[s.facultyId]!=null){ hrs[s.facultyId] += hoursOf(s); day[s.facultyId][s.date] = (day[s.facultyId][s.date]||0) + hoursOf(s); }
+    if(s.facultyId || targets.includes(s)) expect(s);
+  }
+  let filled=0, missed=0;
+  for(const s of targets){
+    if(s.facultyId) continue;
+    const cands = eligibleFor(s).filter(f => !busy(f.id,s));
+    if(!cands.length){ missed++; continue; }
+    /* furthest behind what they were due, with a small nudge to spread one person's classes across days */
+    const score = f => (exp[f.id]-hrs[f.id]) - 0.25*(day[f.id][s.date]||0);
+    cands.sort((a,b) => score(b)-score(a) || hrs[a.id]-hrs[b.id] || a.name.localeCompare(b.name));
+    const f = cands[0];
+    s.facultyId = f.id; hrs[f.id] += hoursOf(s); day[f.id][s.date] = (day[f.id][s.date]||0) + hoursOf(s);
+    filled++;
+  }
+  return {filled, missed};
+}
+
+/* ============ filtering ============ */
+function visible(from, to){
+  return S.sessions.filter(s => s.date>=from && s.date<=to
+    && (ui.course==='all' || s.courseId===ui.course)
+    && (ui.type==='all' || s.type===ui.type)
+    && (ui.teacher==='all' || s.facultyId===ui.teacher)).sort(byTime);
+}
+function range(){
+  if(ui.view==='table'){ const m = monday(ui.anchor); return [m, addDays(m,6)]; }
+  const d = parse(ui.anchor); const first = iso(new Date(d.getFullYear(), d.getMonth(), 1));
+  const last = iso(new Date(d.getFullYear(), d.getMonth()+1, 0));
+  return [monday(first), addDays(monday(last),6), first, last];
+}
+const blocksOn = date => S.blocks.filter(b => date>=b.from && date<=(b.to||b.from) && (ui.course==='all' || b.courseId===ui.course));
+
+/* ============ render ============ */
+function snapshotPF(){
+  const g = id => document.getElementById(id);
+  if(!g('pf-start')) return;
+  ui.pf = { day:g('pf-day').value, start:g('pf-start').value, end:g('pf-end').value, course:g('pf-course').value,
+    type:g('pf-type').value, freq:g('pf-freq').value, until:g('pf-until').value, topic:g('pf-topic').value, venue:g('pf-venue').value,
+    mode:(document.querySelector('.pf-m:checked')||{}).value || ui.pf.mode || 'separate',
+    rot:g('pf-rot') ? g('pf-rot').value : ui.pf.rot,
+    batches:[...document.querySelectorAll('.pf-b:checked')].map(x=>x.value), batchesFor:g('pf-course').value };
+}
+function render(){
+  snapshotPF();
+  const app = document.getElementById('app');
+  app.dataset.ok = '1';
+  const tabs = ME.isOffice
+    ? [['roster','Roster'],['plan','Plan the week'],['comps','Competencies'],['msgs','Weekly messages'],['swaps','Swaps'],['load','Workload'],['setup','Setup']]
+    : [['roster','Roster'],['comps','Competencies'],['swaps','Swaps and my emails'],['load','Workload']];
+  if(!tabs.some(t=>t[0]===ui.tab)) ui.tab='roster';
+  const pending = S.swaps.filter(x=>x.status==='Requested' && (ME.isOffice || x.toId===ME.facultyId)).length;
+  app.innerHTML = `
+  <header class="top">
+    <div class="brand"><h1>${esc(S.settings.dept)}</h1><p>Teaching roster, ${esc(S.settings.inst)}</p></div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span class="help">${esc(ME.name||ME.email)}${ME.isOffice?' (office)':''} <span id="savestate">${esc(saveState)}</span></span>
+      ${ME.isOffice?`<label class="clerk"><input type="checkbox" data-ch="edit" ${ui.edit?'checked':''}> Office mode</label>`:''}
+    </div>
+  </header>
+  <nav class="tabs" aria-label="Sections">${tabs.map(([k,l])=>`<button data-act="tab" data-v="${k}" aria-current="${ui.tab===k}">${l}${k==='swaps'&&pending?` (${pending})`:''}</button>`).join('')}</nav>
+  ${ui.edit ? `<div class="notice no-print">Office mode is on. Every change is saved on its own and everyone sees it at once.${S.meta.savedAt?` Last saved ${esc(stamp(S.meta.savedAt))}.`:''}
+    <div class="row-actions"><button class="btn" data-act="reload">Reload from the server</button></div></div>`
+    : (ME.isOffice ? '' : `<div class="notice no-print">You are signed in as a teacher. You can see the whole roster, download your own calendar, and offer a class to a colleague. Only the office can change the roster.</div>`)}
+  <main>${({roster:viewRoster,plan:viewPlan,comps:viewComps,msgs:viewMsgs,swaps:viewSwaps,load:viewLoad,setup:viewSetup})[ui.tab]()}</main>`;
+}
+
+const stamp = t => { if(!t) return ''; const d=new Date(t); return isNaN(d) ? String(t) : d.toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}); };
+function coursePills(noAll, cur){
+  cur = cur || ui.course;
+  return `<div class="courses" role="group" aria-label="Course">
+    ${noAll?'':`<button class="all" data-act="course" data-v="all" aria-pressed="${cur==='all'}">All courses (cumulative)</button>`}
+    ${S.courses.map(c=>`<button style="--c:${c.color}" data-act="course" data-v="${c.id}" aria-pressed="${cur===c.id}">${esc(c.name)}</button>`).join('')}
+  </div>`;
+}
+
+function teacherCell(s){
+  const f = person(s.facultyId), aw = away(s);
+  if(!ui.edit){
+    if(f) return `<span class="teacher">${esc(f.name)}</span>${onLeave(f,s.date)?' <span class="unassigned">On leave</span>':''}`;
+    return aw ? `<span class="help">Batch away</span>` : `<span class="unassigned">Unassigned</span>`;
+  }
+  const opts = S.faculty.filter(x=>x.active!==false).map(x => {
+    const w = weight(x,s.type), leave = onLeave(x,s.date), clash = busy(x.id,s), notList = !allowed(x,s.courseId);
+    const note = leave?' (on leave)':clash?' (has a clash)':notList?' (not on course list)':w===0?` (rank not given ${s.type})`:'';
+    return `<option value="${x.id}" ${x.id===s.facultyId?'selected':''}>${esc(x.name+note)}</option>`;
+  }).join('');
+  return `<select data-ch="assign" data-id="${s.id}" aria-label="Teacher"><option value="">Unassigned</option>${opts}</select>
+    <button class="lock" data-act="lock" data-id="${s.id}" aria-pressed="${!!s.locked}" title="${s.locked?'Locked: auto-assign will not change this':'Unlocked: auto-assign may change this'}">${s.locked?'🔒':'🔓'}</button>`;
+}
+
+function compCell(s){
+  const chips = s.comps.map(c=>`<span class="code" title="${esc(S.competencies.find(k=>k.code===c)?.text||'')}">${esc(c)}${ui.edit?`<button data-act="rmcomp" data-id="${s.id}" data-c="${esc(c)}" aria-label="Remove ${esc(c)}">×</button>`:''}</span>`).join('');
+  return `<div class="codes">${chips||(ui.edit?'':'<span class="help">None</span>')}${ui.edit?`<button class="btn sm" data-act="pickcomp" data-id="${s.id}">${s.comps.length?'Change':'Choose'}</button>`:''}</div>`;
+}
+
+function tableHTML(from, to, list){
+  if(!list.length) return `<div class="tbl-wrap"><div class="empty"><b>No classes in this week${ui.course!=='all'?' for this course':''}.</b>${ui.edit?'Add them under Plan the week, or copy last week\'s timetable there.':'Try another week or course.'}</div></div>`;
+  let rows = '';
+  const cols = 9;
+  for(let d=from; d<=to; d=addDays(d,1)){
+    const day = list.filter(s=>s.date===d), h = holiday(d), bl = blocksOn(d);
+    if(!day.length && !h && !bl.length) continue;
+    rows += `<tr class="day"><td colspan="${cols}">${nice(d,{weekday:'long',day:'numeric',month:'long'})}${h?`<span class="hol">${esc(h.name)}</span>`:''}${bl.map(b=>`<span class="away">${esc(blocksLabel(b))}</span>`).join('')}<span class="count">${day.length} class${day.length===1?'':'es'}</span></td></tr>`;
+    for(const s of day){
+      const c = course(s.courseId), aw = away(s);
+      rows += `<tr style="--c:${c.color}" class="${aw?'isaway':''} ${s.notHeld?'isnotheld':''}">
+        <td class="time">${t12(s.start)} to ${t12(s.end)}<br><span class="help">${hoursOf(s).toFixed(1).replace('.0','')} h</span>${movedTag(s)}</td>
+        <td><span class="cc"><i></i>${esc(c.short)}</span></td>
+        <td><span class="kind ${typeOf(s.type).style==='solid'?'theory':'practical'}">${esc(typeName(s.type))}</span></td>
+        <td>${esc(batsLabel(s))}${aw?`<span class="away">${esc(aw.reason)}</span>`:''}${holiday(s.date)?`<span class="away">Holiday</span>`:''}${s.notHeld?`<span class="nh">Not held</span>`:''}</td>
+        <td>${ui.edit?`<input type="text" value="${esc(s.topic)}" data-ch="sfield" data-f="topic" data-id="${s.id}" aria-label="Topic">`:esc(s.topic)}</td>
+        <td>${compCell(s)}</td>
+        <td>${ui.edit?`<input type="text" value="${esc(s.venue)}" data-ch="sfield" data-f="venue" data-id="${s.id}" aria-label="Venue">`:esc(s.venue)}</td>
+        <td>${teacherCell(s)}</td>
+        <td class="no-print"><div class="acts">${s.facultyId && !isOver(s)?`<button class="btn sm" data-act="swapdlg" data-id="${s.id}">Swap</button>`:''}${ui.edit?`<button class="btn sm" data-act="reschdlg" data-id="${s.id}">Reschedule</button>`:''}${ui.edit && isOver(s)?`<button class="btn sm" data-act="notheld" data-id="${s.id}">${s.notHeld?'Mark as held':'Mark not held'}</button>`:''}${ui.edit?`<button class="btn sm danger" data-act="delsess" data-id="${s.id}" aria-label="Delete class">Delete</button>`:''}</div></td>
+      </tr>`;
+    }
+  }
+  return `<div class="tbl-wrap"><table class="${ui.edit?'wide':''}"><thead><tr><th>Time</th><th>Course</th><th>Class</th><th>Batch</th><th>Topic</th><th>Competency</th><th>Venue</th><th>Teacher</th><th class="no-print"></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function calendarHTML(from, to, first, last, list){
+  let html = DAYS.map(d=>`<div class="h">${d}</div>`).join('');
+  for(let d=from; d<=to; d=addDays(d,1)){
+    const out = d<first || d>last, h = holiday(d), day = list.filter(s=>s.date===d), bl = blocksOn(d);
+    html += `<div class="cell ${out?'out':''} ${d===TODAY?'today':''} ${h?'holi':''} ${!day.length&&!h&&!bl.length?'blank':''}">
+      <div><span class="dn">${parse(d).getDate()}</span><span class="dl">${nice(d,{weekday:'long',month:'short'})}</span></div>
+      ${h?`<div class="hn">${esc(h.name)}</div>`:''}
+      ${bl.map(b=>`<div class="bn">${esc(blocksLabel(b))}</div>`).join('')}
+      ${day.map(s=>{ const c=course(s.courseId), f=person(s.facultyId), aw=away(s);
+        return `<div class="chip ${typeOf(s.type).style==='solid'?'theory':'practical'} ${f||aw?'':'none'}" style="--c:${c.color}${aw||s.notHeld?';opacity:.55':''}" title="${esc(s.topic)}${s.comps.length?' ('+esc(s.comps.join(', '))+')':''}"><b>${t12(s.start)}</b> ${esc(c.short)}, ${esc(batsLower(s))}<span class="who">${s.notHeld?'Not held':f?esc(f.name):aw?'Batch away':'Unassigned'}</span></div>`;}).join('')}
+    </div>`;
+  }
+  return `<div class="cal">${html}</div>`;
+}
+
+function viewRoster(){
+  const [from,to,first,last] = range();
+  const list = visible(first||from, last||to);
+  const title = ui.view==='table' ? `Week of ${nice(from,{day:'numeric',month:'long',year:'numeric'})}` : parse(ui.anchor).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const unassigned = list.filter(s=>!s.facultyId && !holiday(s.date) && !away(s)).length;
+  const onLeaveN = list.filter(s=>{ const f=person(s.facultyId); return f && onLeave(f,s.date); }).length;
+  const cname = ui.course==='all'?'All courses':course(ui.course).name;
+  return `
+  ${coursePills()}
+  <div class="bar">
+    <div class="seg" role="group" aria-label="View"><button data-act="view" data-v="table" aria-pressed="${ui.view==='table'}">Table</button><button data-act="view" data-v="cal" aria-pressed="${ui.view==='cal'}">Calendar</button></div>
+    <button class="btn" data-act="nav" data-v="-1" aria-label="Previous">‹</button>
+    <button class="btn" data-act="nav" data-v="0">Today</button>
+    <button class="btn" data-act="nav" data-v="1" aria-label="Next">›</button>
+    <span class="period">${title}</span>
+    <span class="grow"></span>
+    <select data-ch="type" aria-label="Class type"><option value="all">All class types</option>${S.types.map(t=>`<option value="${t.id}" ${ui.type===t.id?'selected':''}>${esc(t.name)} only</option>`).join('')}</select>
+    <select data-ch="teacher" aria-label="Teacher"><option value="all">All teachers</option>${S.faculty.map(f=>`<option value="${f.id}" ${ui.teacher===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}</select>
+  </div>
+  <div class="stats">
+    <div><b>${list.length}</b>classes</div>
+    ${S.types.filter(t=>list.some(s=>s.type===t.id)).map(t=>`<div><b>${list.filter(s=>s.type===t.id).length}</b>${esc(t.name.toLowerCase())}</div>`).join('')}
+    <div><b>${hSum(list).toFixed(1)}</b>hours</div>
+    <div class="${unassigned?'bad':''}"><b>${unassigned}</b>without a teacher</div>
+    ${onLeaveN?`<div class="bad"><b>${onLeaveN}</b>with a teacher on leave</div>`:''}
+    <div class="legend"><span><i class="sw"></i>Theory</span><span><i class="sw p"></i>Practical</span></div>
+  </div>
+  <h2 class="print-title">${esc(cname)}: ${title}</h2>
+  ${ui.view==='table' ? tableHTML(from,to,list) : calendarHTML(from,to,first,last,list)}
+  <div class="row-actions no-print">
+    <button class="btn" data-act="print">Print or save as PDF</button>
+    <button class="btn" data-act="csv">Download as CSV (Excel)</button>
+    ${ui.teacher!=='all'?`<button class="btn" data-act="ics">Add ${esc(person(ui.teacher)?.name||'')}'s classes to phone calendar (.ics)</button>`:''}
+    ${ui.edit && unassigned?`<button class="btn primary" data-act="fillview">Fill ${unassigned} empty slot${unassigned===1?'':'s'}</button>`:''}
+  </div>`;
+}
+
+function viewPlan(){
+  if(!ui.edit) return `<div class="panel"><h2>Plan the week</h2><p class="lead">${ME.isOffice?'Turn on Office mode at the top right to use it.':'Only the office can plan classes.'}</p></div>`;
+  if(!S.courses.length) return `<div class="panel"><h2>Plan the week</h2><p class="lead">Add at least one course under Setup first.</p></div>`;
+  const m = monday(ui.anchor), to = addDays(m,6);
+  const p = ui.pf;
+  const pc = S.courses.find(c=>c.id===p.course) ? p.course : S.courses[0].id;
+  const c = course(pc);
+  const day = p.day>=m && p.day<=to ? p.day : m;
+  const bsel = p.batches && p.batchesFor===pc ? p.batches : ['All'];
+  const rots = rotationsFor(pc);
+  const mode = (p.mode==='rotation' && !rots.length) ? 'separate' : (p.mode || 'separate');
+  const week = S.sessions.filter(s=>s.date>=m && s.date<=to).sort(byTime);
+  const wkBlocks = S.blocks.filter(b => b.from<=to && (b.to||b.from)>=m);
+  return `
+  <div class="bar">
+    <button class="btn" data-act="nav" data-v="-1" aria-label="Previous week">‹</button>
+    <button class="btn" data-act="nav" data-v="0">This week</button>
+    <button class="btn" data-act="nav" data-v="1" aria-label="Next week">›</button>
+    <span class="period">Week of ${nice(m,{day:'numeric',month:'long',year:'numeric'})}</span>
+  </div>
+  ${wkBlocks.length?`<div class="notice">Away this week: ${wkBlocks.map(b=>`<b>${esc(blocksLabel(b))}</b> (${nice(b.from,{day:'numeric',month:'short'})} to ${nice(b.to||b.from,{day:'numeric',month:'short'})})`).join('; ')}. No classes are added for these batches on those days.</div>`:''}
+  <div class="panel">
+    <h2>Add a class</h2>
+    <p class="lead">Pick the day, time, course and type. Set how often it repeats and how long for. Batches ticked separately each get their own teacher; batches ticked together are one class with one teacher. A rotation fills in whichever batches are posted with us on each date.</p>
+    <div class="grid-form">
+      <label>Day<select id="pf-day">${[0,1,2,3,4,5,6].map(i=>{const d=addDays(m,i),h=holiday(d);return `<option value="${d}" ${d===day?'selected':''}>${nice(d)}${h?' (holiday)':''}</option>`;}).join('')}</select></label>
+      <label>Starts<input type="time" id="pf-start" value="${p.start||'09:00'}"></label>
+      <label>Ends<input type="time" id="pf-end" value="${p.end||'10:00'}"></label>
+      <label>Course<select id="pf-course" data-ch="pfcourse">${S.courses.map(x=>`<option value="${x.id}" ${x.id===pc?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
+      <label>Type<select id="pf-type">${S.types.map(t=>`<option value="${t.id}" ${p.type===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
+      <label>Repeats<select id="pf-freq">${[[0,'this week only'],[1,'every week'],[2,'every second week'],[3,'every third week'],[4,'every fourth week']].map(([v,l])=>`<option value="${v}" ${String(v)===String(p.freq??1)?'selected':''}>${l}</option>`).join('')}</select></label>
+      <label>Until<select id="pf-until">${[['term','the end of the term'],['4','4 weeks from now'],['8','8 weeks'],['12','12 weeks'],['16','16 weeks'],['26','26 weeks']].map(([v,l])=>`<option value="${v}" ${String(v)===String(p.until||'term')?'selected':''}>${l}</option>`).join('')}</select></label>
+      <label style="grid-column:span 2">Topic<input type="text" id="pf-topic" value="${esc(p.topic||'')}" placeholder="e.g. Asphyxial deaths: hanging"></label>
+      <label>Venue<input type="text" id="pf-venue" value="${esc(p.venue||'')}" placeholder="e.g. Lecture Theatre 2"></label>
+    </div>
+    <div class="field" style="margin-top:12px">Who attends
+      <div class="batches">
+        <label><input type="radio" name="pfmode" class="pf-m" data-ch="pfmode" value="separate" ${mode==='separate'?'checked':''}> Each ticked batch separately</label>
+        <label><input type="radio" name="pfmode" class="pf-m" data-ch="pfmode" value="together" ${mode==='together'?'checked':''}> The ticked batches together, as one class</label>
+        ${rots.length?`<label><input type="radio" name="pfmode" class="pf-m" data-ch="pfmode" value="rotation" ${mode==='rotation'?'checked':''}> Follow a rotation</label>`:''}
+      </div>
+      ${mode==='rotation' && rots.length ? `<div class="batches" style="margin-top:8px"><label style="border:0;padding:0">Rotation
+          <select id="pf-rot">${rots.map(r=>`<option value="${r.id}" ${p.rot===r.id?'selected':''}>${esc(r.name)}</option>`).join('')}</select></label>
+          <span class="help">The batches on posting with us change by themselves on each date of the rotation.</span></div>`
+        : `<div class="batches" style="margin-top:8px">
+        <label><input type="checkbox" class="pf-b" value="All" ${bsel.includes('All')?'checked':''}> Whole class</label>
+        ${c.batches.map(b=>`<label><input type="checkbox" class="pf-b" value="${esc(b)}" ${bsel.includes(b)?'checked':''}> Batch ${esc(b)}</label>`).join('')}
+      </div>`}
+    </div>
+    <div class="field" style="margin-top:12px">NMC competency
+      <div class="codes">${ui.pfComps.map(k=>`<span class="code">${esc(k)}<button data-act="rmpfcomp" data-c="${esc(k)}" aria-label="Remove ${esc(k)}">×</button></span>`).join('')}
+        <button class="btn sm" data-act="pickcomp" data-id="pf">${ui.pfComps.length?'Change':'Choose from the list'}</button></div>
+    </div>
+    <div class="row-actions"><button class="btn primary" data-act="addclass">Add class</button></div>
+  </div>
+  <div class="panel">
+    <h2>Teachers for this week</h2>
+    <p class="lead">Auto-assign counts in hours. It works out the hours each person was due, from the ratio for their rank and the class type, and gives each class to whoever is furthest behind. It skips anyone on leave, anyone already teaching at that hour, anyone not on the course's teacher list, and batches that are away. Classes you set by hand are locked and stay as they are.</p>
+    <div class="row-actions" style="margin-top:0">
+      <button class="btn primary" data-act="fillweek">Fill empty slots</button>
+      <button class="btn" data-act="redoweek">Redo this week (keeps locked ones)</button>
+      <button class="btn" data-act="copyweek">Copy last week's timetable here</button>
+      <button class="btn danger" data-act="clearweek">Remove all classes this week</button>
+    </div>
+  </div>
+  ${tableHTML(m, to, week)}`;
+}
+
+/* ---------- competencies coverage ---------- */
+function covStatus(cid, code, b){
+  /* a whole-class lecture only counts for a batch that was not away that day */
+  const ss = S.sessions.filter(s => s.courseId===cid && s.comps.includes(code) && (b==='All' || s.batch==='All' || bats(s).includes(b)) && !awayBlock(s.courseId, b==='All'?bats(s)[0]:b, s.date) && !holiday(s.date)).sort(byTime);
+  const held = ss.filter(isHeld);
+  if(held.length) return {k:'done', d:held[0].date, n:held.length};
+  const next = ss.find(s=>!isOver(s));
+  return next ? {k:'plan', d:next.date} : {k:'pend'};
+}
+const covCourse = () => ui.course!=='all' && S.courses.some(c=>c.id===ui.course) ? ui.course : S.courses[0]?.id;
+function viewComps(){
+  const cid = covCourse();
+  if(!cid) return `<div class="panel"><h2>Competencies</h2><p class="lead">Add a course under Setup first.</p></div>`;
+  const c = course(cid), batches = c.batches.length ? c.batches : ['All'];
+  const topics = [...new Set(S.competencies.map(k=>k.topic))];
+  const q = ui.covQ.toLowerCase();
+  let list = S.competencies.filter(k => (ui.covTopic==='all' || k.topic===ui.covTopic) && (!q || (k.code+' '+k.text).toLowerCase().includes(q)));
+  const grid = list.map(k => ({k, st: batches.map(b=>covStatus(cid,k.code,b))}));
+  const shown = ui.covPending ? grid.filter(r=>r.st.some(x=>x.k!=='done')) : grid;
+  const demo = !S.competencies.length || S.competencies.some(k=>k.code.startsWith('DEMO'));
+  return `
+  ${coursePills(true, cid)}
+  ${demo?`<div class="notice">${S.competencies.length?'The competency list here is a <b>demo list</b>.':'The competency list is <b>empty</b>.'} Download the sample file, fill in the NMC competencies and upload it.${ui.edit?`<div class="row-actions"><button class="btn" data-act="comptemplate">Download sample file</button><button class="btn primary" data-act="compimport">Upload filled file</button></div>`:' Turn on Office mode to upload it.'}</div>`:''}
+  <div class="bar">
+    <select data-ch="covtopic" aria-label="Topic"><option value="all">All topics</option>${topics.map(t=>`<option ${t===ui.covTopic?'selected':''}>${esc(t)}</option>`).join('')}</select>
+    <input type="text" placeholder="Search code or words" value="${esc(ui.covQ)}" data-ch="covq" aria-label="Search competencies">
+    <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-ch="covpend" ${ui.covPending?'checked':''}> Only show what is still pending</label>
+    <span class="grow"></span>
+    <button class="btn" data-act="covcsv">Download as CSV (Excel)</button>
+    <button class="btn" data-act="print">Print</button>
+  </div>
+  <div class="stats">
+    ${batches.map((b,i)=>{ const done = grid.filter(r=>r.st[i].k==='done').length; return `<div>${esc(batchLabel(b))}: <span class="ok"><b>${done}</b>done</span>, <span class="bad2"><b>${grid.length-done}</b>pending</span></div>`; }).join('')}
+  </div>
+  <p class="help">A competency counts as covered once a class tagged with it has been held for that batch. A whole-class theory lecture counts for every batch. Green means taught. Red means pending; it stays red until the class is actually held, even if it's already on the roster. A class marked "not held" doesn't count, and a whole-class lecture doesn't count for a batch that was away that day.</p>
+  <h2 class="print-title">${esc(c.name)}: competency coverage</h2>
+  <div class="tbl-wrap"><table class="cov">
+    <thead><tr><th>Code</th><th>Competency</th>${batches.map(b=>`<th>${esc(batchLabel(b))}</th>`).join('')}</tr></thead>
+    <tbody>${shown.length? shown.map(r=>`<tr><td><b>${esc(r.k.code)}</b></td><td class="ctext">${esc(r.k.text)}</td>${r.st.map(x=>
+      x.k==='done'?`<td class="done">Done ${nice(x.d,{day:'numeric',month:'short'})}</td>`:x.k==='plan'?`<td class="plan">Pending<small>on roster for ${nice(x.d,{day:'numeric',month:'short'})}</small></td>`:`<td class="pend">Pending</td>`).join('')}</tr>`).join('')
+      : `<tr><td colspan="${2+batches.length}"><div class="empty"><b>Nothing to show.</b>Change the topic or search, or load the competency list under Setup.</div></td></tr>`}</tbody>
+  </table></div>`;
+}
+
+/* ---------- weekly messages ---------- */
+function msgFor(f, from, to){
+  const list = S.sessions.filter(s=>s.facultyId===f.id && s.date>=from && s.date<=to && !away(s) && !holiday(s.date)).sort(byTime);
+  if(!list.length) return null;
+  const hrs = hSum(list);
+  const lines = list.map(s=>{ const c=course(s.courseId);
+    const mv = (s.history||[]).length ? ` (moved from ${nice(s.history[s.history.length-1].fromDate)})` : '';
+    return `${nice(s.date)}, ${t12(s.start)} to ${t12(s.end)}${mv}\n${c.short} ${typeName(s.type)}, ${batsLower(s)}${s.topic?`\nTopic: ${s.topic}`:''}${s.comps.length?` (${s.comps.join(', ')})`:''}${s.venue?`\nVenue: ${s.venue}`:''}`; });
+  const text = `Dear ${f.name},\n\nYour classes for the week of ${nice(from,{day:'numeric',month:'long',year:'numeric'})}:\n\n${lines.join('\n\n')}\n\nTotal: ${list.length} class${list.length===1?'':'es'}, ${hrs.toFixed(1).replace('.0','')} hours.\nIf you can't take a class, please arrange a swap with a colleague and inform the office.\n\nOffice, ${S.settings.dept}`;
+  return {text, n:list.length};
+}
+function viewMsgs(){
+  const from = monday(ui.msgWeek), to = addDays(from,6);
+  ui.msgs = [];
+  const cards = [], none = [];
+  S.faculty.filter(f=>f.active!==false).forEach(f=>{
+    const m = msgFor(f,from,to);
+    if(!m){ none.push(f.name); return; }
+    const i = ui.msgs.push(m.text)-1;
+    const subj = `Teaching roster: week of ${nice(from,{day:'numeric',month:'short'})}`;
+    cards.push(`<div class="card"><h3>${esc(f.name)} <span class="help">${m.n} class${m.n===1?'':'es'}</span></h3>
+      <textarea readonly aria-label="Message for ${esc(f.name)}">${esc(m.text)}</textarea>
+      <div class="row-actions" style="margin-top:0">
+        <button class="btn sm" data-act="copymsg" data-i="${i}">Copy</button>
+        <a class="btn sm" target="_blank" rel="noopener" href="${waLink(f.phone,m.text)}">Send on WhatsApp</a>
+        <a class="btn sm" href="${mailLink(f.email,subj,m.text)}">Send by email</a>
+      </div>
+      ${!f.phone?`<span class="help">No WhatsApp number saved; WhatsApp will ask you to pick the contact.</span>`:''}</div>`);
+  });
+  return `
+  <div class="bar">
+    <button class="btn" data-act="msgnav" data-v="-1" aria-label="Previous week">‹</button>
+    <button class="btn" data-act="msgnav" data-v="0">Next week</button>
+    <button class="btn" data-act="msgnav" data-v="1" aria-label="Following week">›</button>
+    <span class="period">Week of ${nice(from,{day:'numeric',month:'long',year:'numeric'})}</span>
+    <span class="grow"></span>
+    ${cards.length?`<button class="btn" data-act="copyall">Copy all messages</button>`:''}
+  </div>
+  <p class="help">One ready-to-send message per teacher, listing their classes for the week. Save phone numbers and email addresses under Setup, in the Faculty section.</p>
+  ${cards.length?`<div class="cards">${cards.join('')}</div>`:`<div class="panel"><div class="empty"><b>No classes on the roster for this week.</b>Plan the week first, or pick another week.</div></div>`}
+  ${none.length && cards.length?`<p class="help">No classes this week: ${esc(none.join(', '))}.</p>`:''}`;
+}
+
+/* ---------- swaps ---------- */
+function swapText(sw){
+  return `Swap request, ${S.settings.dept}\n\nClass: ${sw.classText}\nNow with: ${person(sw.fromId)?.name||''}\nHand over to: ${person(sw.toId)?.name||''}${sw.exchangeText?`\nIn exchange, ${person(sw.fromId)?.name||''} takes: ${sw.exchangeText}`:''}${sw.reason?`\nReason: ${sw.reason}`:''}\n\nBoth teachers have agreed. Please update the roster.`;
+}
+function viewSwaps(){
+  const mine = S.swaps.filter(x=>x.status==='Requested' && x.toId===ME.facultyId);
+  const list = S.swaps.filter(x=>ui.swapFilter==='all'||x.status===ui.swapFilter)
+    .filter(x=>ME.isOffice || x.toId===ME.facultyId || x.fromId===ME.facultyId)
+    .sort((a,b)=>b.loggedOn.localeCompare(a.loggedOn));
+  const p = ME.prefs||{};
+  return `
+  ${mine.length?`<div class="panel">
+    <h2>Offered to you</h2>
+    <p class="lead">A colleague has asked you to take these. Accepting changes the roster at once and tells them by email.</p>
+    ${mine.map(x=>`<div class="card" style="margin-bottom:10px">
+      <h3>${esc(x.classText)}</h3>
+      <div class="help">From ${esc(person(x.fromId)?.name||'')}${x.exchangeText?`. In exchange you hand over: ${esc(x.exchangeText)}`:''}${x.reason?`. Reason: ${esc(x.reason)}`:''}</div>
+      <div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="swapaccept" data-id="${x.id}">Accept</button>
+        <button class="btn" data-act="swapdecline2" data-id="${x.id}">Decline</button></div>
+    </div>`).join('')}
+  </div>`:''}
+  <div class="panel">
+    <h2>Swaps</h2>
+    <p class="lead">${ME.isOffice
+      ? 'A teacher who cannot take a class presses <b>Swap</b> beside it on the Roster and offers it to a colleague. The colleague gets an email and accepts or declines. The roster changes by itself and the log keeps the record. You can also apply a swap yourself.'
+      : 'If you cannot take a class, press <b>Swap</b> beside it on the Roster and offer it to a colleague. They get an email and accept or decline. Nothing changes until they accept.'}</p>
+    <div class="grid-form" style="max-width:420px">
+      <label>Show<select data-ch="swapfilter"><option value="all">All swaps</option>${['Requested','Accepted','Declined'].map(x=>`<option ${ui.swapFilter===x?'selected':''}>${x}</option>`).join('')}</select></label>
+    </div>
+  </div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Logged</th><th>Class</th><th>From</th><th>To</th><th>In exchange</th><th>Reason</th><th>Status</th>${ui.edit?'<th></th>':''}</tr></thead>
+    <tbody>${list.length? list.map(x=>`<tr>
+      <td>${nice(x.loggedOn,{day:'numeric',month:'short'})}</td><td>${esc(x.classText)}</td>
+      <td>${esc(person(x.fromId)?.name||'(removed)')}</td><td>${esc(person(x.toId)?.name||'(removed)')}</td>
+      <td>${esc(x.exchangeText||'')}</td><td>${esc(x.reason||'')}</td>
+      <td><span class="status ${x.status}">${x.status}${x.decidedOn?` ${nice(x.decidedOn,{day:'numeric',month:'short'})}`:''}</span></td>
+      ${ui.edit?`<td style="white-space:nowrap">${x.status==='Requested'?`<button class="btn sm primary" data-act="swapaccept" data-id="${x.id}">Apply</button> <button class="btn sm" data-act="swapdecline2" data-id="${x.id}">Decline</button> `:''}<button class="btn sm danger" data-act="swapdel" data-id="${x.id}">Delete</button></td>`:''}
+    </tr>`).join('') : `<tr><td colspan="${ui.edit?8:7}"><div class="empty"><b>No swaps yet.</b>Use the Swap button beside a class on the Roster.</div></td></tr>`}</tbody>
+  </table></div>
+  ${ME.facultyId?`<div class="panel" style="margin-top:18px">
+    <h2>Emails to you</h2>
+    <p class="lead">These go to ${esc(ME.email)}. Untick anything you would rather not receive.</p>
+    <div class="batches">
+      <label><input type="checkbox" data-ch="pref" data-f="weekly" ${p.weekly!==false?'checked':''}> Your classes for the coming week, on Sunday evening</label>
+      <label><input type="checkbox" data-ch="pref" data-f="daily" ${p.daily!==false?'checked':''}> A reminder the evening before a class</label>
+      <label><input type="checkbox" data-ch="pref" data-f="swaps" ${p.swaps!==false?'checked':''}> Swap offers and answers</label>
+    </div>
+  </div>`:`<p class="help">Your Google account is not on the faculty list yet, so you will not get roster emails. Ask the office to add it.</p>`}`;
+}
+function viewLoad(){
+  const st = S.settings;
+  let from, to, label;
+  if(ui.wlRange==='month'){ const d=parse(ui.anchor); from=iso(new Date(d.getFullYear(),d.getMonth(),1)); to=iso(new Date(d.getFullYear(),d.getMonth()+1,0)); label=d.toLocaleDateString('en-IN',{month:'long',year:'numeric'}); }
+  else if(ui.course!=='all'){ const t=termOf(ui.course); from=t.from||'0000'; to=t.to||'9999'; label=`${course(ui.course).short} term: ${t.from?nice(t.from,{day:'numeric',month:'short',year:'numeric'}):'start'} to ${t.to?nice(t.to,{day:'numeric',month:'short',year:'numeric'}):'end'}`; }
+  else { from=st.termStart||'0000'; to=st.termEnd||'9999'; label=`Term: ${st.termStart?nice(st.termStart,{day:'numeric',month:'short',year:'numeric'}):'start'} to ${st.termEnd?nice(st.termEnd,{day:'numeric',month:'short',year:'numeric'}):'end'}`; }
+  const list = S.sessions.filter(x=>x.date>=from && x.date<=to && x.facultyId && !x.notHeld && (ui.course==='all'||x.courseId===ui.course));
+  /* every class is shared out, in hours, among the people who could have taken it that day:
+     right rank, on the course's teacher list, active and not on leave */
+  const share = {};
+  S.faculty.forEach(f => share[f.id] = 0);
+  for(const x of list){
+    const elig = S.faculty.filter(f => f.active!==false && weight(f,x.type)>0 && allowed(f,x.courseId) && !onLeave(f,x.date));
+    const sw = elig.reduce((a,f)=>a+weight(f,x.type),0);
+    if(sw) elig.forEach(f => share[f.id] += hoursOf(x)*weight(f,x.type)/sw);
+  }
+  const used = S.types.filter(t=>list.some(x=>x.type===t.id));
+  const rows = S.faculty.map(f=>{
+    const mine = list.filter(x=>x.facultyId===f.id);
+    const hrs = hSum(mine), fair = share[f.id]||0;
+    return {f, mine, hrs, fair, diff:hrs-fair};
+  });
+  const max = Math.max(1, ...rows.map(r=>Math.max(r.hrs, r.fair)));
+  /* hour targets per course, for example the 25 hours of FMT in the 2nd Prof practical slot */
+  const targetRows = [];
+  S.courses.forEach(c => Object.entries(c.targets||{}).forEach(([t,h])=>{
+    if(!+h) return;
+    const all = S.sessions.filter(x=>x.courseId===c.id && x.type===t && !x.notHeld);
+    targetRows.push({c, t, target:+h, planned:hSum(all), held:hSum(all.filter(isHeld))});
+  }));
+  return `
+  ${coursePills()}
+  <div class="bar">
+    <div class="seg" role="group" aria-label="Period"><button data-act="wl" data-v="term" aria-pressed="${ui.wlRange==='term'}">Whole term</button><button data-act="wl" data-v="month" aria-pressed="${ui.wlRange==='month'}">One month</button></div>
+    ${ui.wlRange==='month'?`<button class="btn" data-act="navm" data-v="-1" aria-label="Previous month">‹</button><button class="btn" data-act="navm" data-v="1" aria-label="Next month">›</button>`:''}
+    <span class="period">${label}</span>
+  </div>
+  <p class="help">Load is counted in hours, so a three-hour tutorial weighs more than a one-hour lecture. Fair share is the hours each person should have taken, given the classes so far, the ratio for their rank and class type, the course teacher lists and their leave. Classes marked not held are left out. The black tick on each bar marks the fair share.</p>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Teacher</th><th>Rank</th>${used.map(t=>`<th class="num">${esc(t.name)}</th>`).join('')}<th class="num">Classes</th><th class="num">Hours</th><th class="num">Fair share</th><th class="num">Difference</th><th>Load</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td class="teacher">${esc(r.f.name)}${r.f.active===false?' <span class="help">(inactive)</span>':''}</td>
+      <td>${esc(rankOf(r.f)?.name||'')}</td>
+      ${used.map(t=>`<td class="num">${r.mine.filter(x=>x.type===t.id).length}</td>`).join('')}
+      <td class="num">${r.mine.length}</td>
+      <td class="num"><b>${r.hrs.toFixed(1)}</b></td>
+      <td class="num">${r.fair.toFixed(1)}</td>
+      <td class="num diff ${r.diff>2?'over':''}">${r.diff>=0?'+':''}${r.diff.toFixed(1)}</td>
+      <td><div class="meter"><i style="width:${r.hrs/max*100}%"></i><s style="left:${r.fair/max*100}%"></s></div></td>
+    </tr>`).join('')}</tbody>
+  </table></div>
+  ${targetRows.length?`
+  <div class="panel" style="margin-top:18px">
+    <h2>Hours against the course targets</h2>
+    <p class="lead">Held hours are classes that have already taken place. Planned hours include the ones still to come. Set the targets under Setup, in the Courses section.</p>
+    <div class="tbl-wrap"><table style="min-width:0">
+      <thead><tr><th>Course</th><th>Class type</th><th class="num">Target</th><th class="num">Held</th><th class="num">Planned</th><th class="num">Left to plan</th></tr></thead>
+      <tbody>${targetRows.map(r=>`<tr><td>${esc(r.c.short)}</td><td>${esc(typeName(r.t))}</td><td class="num">${r.target}</td>
+        <td class="num">${r.held.toFixed(1)}</td>
+        <td class="num ${r.planned>r.target?'diff over':''}">${r.planned.toFixed(1)}</td>
+        <td class="num">${Math.max(0, r.target-r.planned).toFixed(1)}</td></tr>`).join('')}</tbody>
+    </table></div>
+  </div>`:''}`;
+}
+function viewSetup(){
+  if(!ui.edit) return `<div class="panel"><h2>Setup</h2><p class="lead">${ME.isOffice?'Turn on Office mode at the top right to change these.':'Only the office can change faculty, courses, holidays and the competency list.'}</p></div>${ME.isOffice?dataPanel():''}`;
+  const s = S.settings;
+  const q = ui.compQ.toLowerCase();
+  const comps = S.competencies.filter(k=>!q || (k.code+' '+k.topic+' '+k.text).toLowerCase().includes(q));
+  return `
+  <div class="panel">
+    <h2>Department</h2>
+    <div class="grid-form">
+      <label style="grid-column:span 2">Department name<input type="text" value="${esc(s.dept)}" data-ch="set" data-f="dept"></label>
+      <label style="grid-column:span 2">Institution<input type="text" value="${esc(s.inst)}" data-ch="set" data-f="inst"></label>
+      <label>Term starts<input type="date" value="${s.termStart||''}" data-ch="set" data-f="termStart"></label>
+      <label>Term ends<input type="date" value="${s.termEnd||''}" data-ch="set" data-f="termEnd"></label>
+      <label>Office WhatsApp number<input type="text" value="${esc(s.clerkPhone||'')}" data-ch="set" data-f="clerkPhone" placeholder="10-digit mobile"></label>
+      <label>Office email<input type="text" value="${esc(s.clerkEmail||'')}" data-ch="set" data-f="clerkEmail"></label>
+    </div>
+    <p class="help">Sign-in is by Google account. Editing rights come from the Office column on the faculty list below.</p>
+  </div>
+  <div class="panel">
+    <h2>Class types</h2>
+    <p class="lead">Every class has a type. Solid types are drawn as a filled block on the roster, hatched ones with diagonal lines, so theory and hands-on work look different at a glance. Each type gets its own ratio column below.</p>
+    <div class="tbl-wrap"><table style="min-width:420px"><thead><tr><th>Type</th><th>Shown as</th><th></th></tr></thead><tbody>
+    ${S.types.map(t=>`<tr><td><input type="text" value="${esc(t.name)}" data-ch="ctype" data-id="${t.id}" data-f="name"></td>
+      <td><select data-ch="ctype" data-id="${t.id}" data-f="style"><option value="solid" ${t.style==='solid'?'selected':''}>Solid block</option><option value="hatch" ${t.style!=='solid'?'selected':''}>Hatched block</option></select></td>
+      <td><button class="btn sm danger" data-act="deltype" data-id="${t.id}">Delete</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="grid-form" style="margin-top:12px;max-width:420px"><label>New type<input type="text" id="ty-n" placeholder="e.g. Small group learning"></label><button class="btn" data-act="addtype">Add type</button></div>
+  </div>
+  <div class="panel">
+    <h2>Ranks and ratio</h2>
+    <p class="lead">The ratio is per person, and per class type. A Professor with theory 3 gets three theory classes for every one taken by someone with theory 1. Put 0 where a rank should not take that type at all.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Rank</th>${S.types.map(t=>`<th>${esc(t.name)}</th>`).join('')}<th></th></tr></thead><tbody>
+    ${S.ranks.map(r=>`<tr><td><input type="text" value="${esc(r.name)}" data-ch="rank" data-id="${r.id}" data-f="name" style="min-width:150px"></td>
+      ${S.types.map(t=>`<td><input type="number" min="0" max="20" step="0.5" value="${r.w[t.id]||0}" data-ch="rankw" data-id="${r.id}" data-f="${t.id}" style="width:70px"></td>`).join('')}
+      <td><button class="btn sm danger" data-act="delrank" data-id="${r.id}">Delete</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="row-actions"><button class="btn" data-act="addrank">Add rank</button></div>
+  </div>
+  <div class="panel">
+    <h2>Faculty</h2>
+    <p class="lead">The email address is the Google account the teacher signs in with, and where their roster emails go. Tick Office to give someone editing rights. Mark someone inactive when they leave the department; their past classes stay on record. Leave dates keep them out of auto-assign for those days. Teachers cannot see anyone's phone number or email.</p>
+    <div class="row-actions" style="margin-top:0;margin-bottom:12px"><button class="btn" data-act="exportcontacts">Download contacts file (keep private)</button><button class="btn" data-act="importcontacts">Open a contacts file</button></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Rank</th><th>Active</th><th>Office</th><th>Google account (email)</th><th>WhatsApp</th><th>Leave</th><th></th></tr></thead><tbody>
+    ${S.faculty.map(f=>`<tr>
+      <td><input type="text" value="${esc(f.name)}" data-ch="fac" data-id="${f.id}" data-f="name" class="${S.faculty.some(x=>x.id!==f.id && x.name.trim().toLowerCase()===f.name.trim().toLowerCase())?'dup':''}"></td>
+      <td><select data-ch="fac" data-id="${f.id}" data-f="rank">${S.ranks.map(r=>`<option value="${r.id}" ${r.id===f.rank?'selected':''}>${esc(r.name)}</option>`).join('')}</select></td>
+      <td><input type="checkbox" ${f.active!==false?'checked':''} data-ch="fac" data-id="${f.id}" data-f="active" aria-label="Active"></td>
+      <td><input type="checkbox" ${f.office?'checked':''} data-ch="fac" data-id="${f.id}" data-f="office" aria-label="Office rights"></td>
+      <td><input type="text" value="${esc(f.email)}" data-ch="fac" data-id="${f.id}" data-f="email" style="width:210px" aria-label="Google account"></td>
+      <td><input type="text" value="${esc(f.phone)}" data-ch="fac" data-id="${f.id}" data-f="phone" style="width:130px" aria-label="WhatsApp number"></td>
+      <td><div class="leaves">${(f.leaves||[]).map((l,i)=>`<span class="pill">${nice(l.from,{day:'numeric',month:'short'})}${l.to&&l.to!==l.from?' to '+nice(l.to,{day:'numeric',month:'short'}):''}<button data-act="delleave" data-id="${f.id}" data-i="${i}" aria-label="Delete leave">×</button></span>`).join('')}
+        <input type="date" id="lf-${f.id}" aria-label="Leave from"><input type="date" id="lt-${f.id}" aria-label="Leave to"><button class="btn sm" data-act="addleave" data-id="${f.id}">Add leave</button></div></td>
+      <td><button class="btn sm danger" data-act="delfac" data-id="${f.id}">Delete</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="row-actions"><button class="btn" data-act="addfac">Add teacher</button></div>
+  </div>
+  <div class="panel">
+    <h2>Courses and batches</h2>
+    <p class="lead">List batches separated by commas, for example A, B for 2nd Prof or A to L for 3rd Phase. Leave it empty for a course taught as one class. Under "Who can teach", tick names to limit a course to those teachers; with nobody ticked, everyone can take it. Each course keeps its own term dates, because the calendars differ. Hour targets are written as "Practical 25; AETCOM 10", and the tool warns as they are reached.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Colour</th><th>Course name</th><th>Short name</th><th>Batches</th><th>Term starts</th><th>Term ends</th><th>Hour targets</th><th>Who can teach</th><th></th></tr></thead><tbody>
+    ${S.courses.map(c=>`<tr>
+      <td><input type="color" value="${c.color}" data-ch="course" data-id="${c.id}" data-f="color" aria-label="Colour"></td>
+      <td><input type="text" value="${esc(c.name)}" data-ch="course" data-id="${c.id}" data-f="name"></td>
+      <td><input type="text" value="${esc(c.short)}" data-ch="course" data-id="${c.id}" data-f="short" style="width:110px"></td>
+      <td><input type="text" value="${esc(c.batches.join(', '))}" data-ch="course" data-id="${c.id}" data-f="batches"></td>
+      <td><input type="date" value="${c.termStart||''}" data-ch="course" data-id="${c.id}" data-f="termStart"></td>
+      <td><input type="date" value="${c.termEnd||''}" data-ch="course" data-id="${c.id}" data-f="termEnd"></td>
+      <td><input type="text" value="${esc(Object.entries(c.targets||{}).filter(([,h])=>+h).map(([t,h])=>typeName(t)+' '+h).join('; '))}" data-ch="course" data-id="${c.id}" data-f="targets" placeholder="e.g. Practical 25" style="min-width:140px"></td>
+      <td><details class="allow" data-act="allowtoggle" data-id="${c.id}" ${ui.openAllow===c.id?'open':''}><summary>${c.allowed.length?c.allowed.length+' teacher'+(c.allowed.length===1?'':'s'):'Everyone'}</summary>
+        <div>${S.faculty.map(f=>`<label><input type="checkbox" data-ch="allow" data-id="${c.id}" data-f="${f.id}" ${c.allowed.includes(f.id)?'checked':''}> ${esc(f.name)}</label>`).join('')}</div></details></td>
+      <td><button class="btn sm danger" data-act="delcourse" data-id="${c.id}">Delete</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="row-actions"><button class="btn" data-act="addcourse">Add course</button></div>
+  </div>
+  <div class="panel">
+    <h2>Batches away (postings and exams)</h2>
+    <p class="lead">Mark the dates when a batch or the whole class is away, for example on a clinical posting or during university exams. No classes are planned or assigned for them on those days.</p>
+    <div class="tbl-wrap"><table style="min-width:620px"><thead><tr><th>Course</th><th>Who is away</th><th>From</th><th>To</th><th>Reason</th><th></th></tr></thead><tbody>
+    ${S.blocks.length? S.blocks.slice().sort((a,b)=>a.from.localeCompare(b.from)).map(b=>`<tr><td>${esc(course(b.courseId).short)}</td><td>${b.batches.includes('All')?'Whole class':esc(b.batches.join(', '))}</td>
+      <td>${nice(b.from,{day:'numeric',month:'short',year:'numeric'})}</td><td>${nice(b.to||b.from,{day:'numeric',month:'short',year:'numeric'})}</td><td>${esc(b.reason)}</td>
+      <td><button class="btn sm danger" data-act="delblock" data-id="${b.id}">Delete</button></td></tr>`).join('') : `<tr><td colspan="6" class="help">No batches marked away.</td></tr>`}
+    </tbody></table></div>
+    <div class="grid-form" style="margin-top:12px">
+      <label>Course<select id="bk-c" data-ch="bkcourse">${S.courses.map(c=>`<option value="${c.id}" ${c.id===ui.bkCourse?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+      <label>From<input type="date" id="bk-f" value="${ui.bk?.f||''}"></label>
+      <label>To<input type="date" id="bk-t" value="${ui.bk?.t||''}"></label>
+      <label>Reason<select id="bk-r">${['Clinical posting','University exam','Internal assessment','Vacation','Other'].map(x=>`<option ${ui.bk?.r===x?'selected':''}>${x}</option>`).join('')}</select></label>
+    </div>
+    <div class="batches" style="margin-top:10px">${(()=>{ const c = course(S.courses.find(x=>x.id===ui.bkCourse)?ui.bkCourse:S.courses[0]?.id); return `<label><input type="checkbox" class="bk-b" value="All"> Whole class</label>`+c.batches.map(b=>`<label><input type="checkbox" class="bk-b" value="${esc(b)}"> Batch ${esc(b)}</label>`).join(''); })()}</div>
+    <div class="row-actions"><button class="btn" data-act="addblock">Mark as away</button></div>
+  </div>
+  <div class="panel">
+    <h2>Rotations (posting groups)</h2>
+    <p class="lead">A rotation says which batches are with us in each spell, for example the Orthopaedics group from 24 Sept to 6 Oct. When a class follows a rotation, the batches change by themselves on each date. Write batches separated by commas; two batches on one line means they attend together.</p>
+    ${S.rotations.map(r=>`<div style="margin-bottom:14px">
+      <h3 style="margin:0 0 6px;font-size:1rem">${esc(r.name)} <span class="help">${esc(course(r.courseId).short)}</span>
+        <button class="btn sm danger" data-act="delrot" data-id="${r.id}">Delete rotation</button></h3>
+      <div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>From</th><th>To</th><th>Batches with us</th><th></th></tr></thead><tbody>
+        ${r.entries.slice().sort((a,b)=>a.from.localeCompare(b.from)).map((e,i)=>`<tr><td>${nice(e.from,{day:'numeric',month:'short',year:'numeric'})}</td><td>${nice(e.to||e.from,{day:'numeric',month:'short',year:'numeric'})}</td>
+          <td>${esc(e.batches.join(', '))}</td><td><button class="btn sm danger" data-act="delrotentry" data-id="${r.id}" data-i="${i}">Delete</button></td></tr>`).join('') || `<tr><td colspan="4" class="help">No spells yet.</td></tr>`}
+      </tbody></table></div>
+      <div class="grid-form" style="margin-top:8px"><label>From<input type="date" id="re-f-${r.id}"></label><label>To<input type="date" id="re-t-${r.id}"></label>
+        <label>Batches<input type="text" id="re-b-${r.id}" placeholder="e.g. I, J"></label><button class="btn" data-act="addrotentry" data-id="${r.id}">Add spell</button></div>
+    </div>`).join('') || `<p class="help">No rotations yet.</p>`}
+    <div class="grid-form" style="margin-top:12px;max-width:640px">
+      <label>Course<select id="rot-c">${S.courses.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label>
+      <label>Rotation name<input type="text" id="rot-n" placeholder="e.g. Orthopaedics posting group"></label>
+      <button class="btn" data-act="addrot">Add rotation</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Holidays and vacations</h2>
+    <p class="lead">These apply to every course. Use the To date for a vacation that runs over several days, for example Deepawali. No teacher is assigned on these days, and copying a week skips them. A vacation for one course only goes under "Batches away" above.</p>
+    <div class="leaves">${S.holidays.slice().sort((a,b)=>a.from.localeCompare(b.from)).map(h=>`<span class="pill">${nice(h.from,{day:'numeric',month:'short',year:'numeric'})}${h.to&&h.to!==h.from?' to '+nice(h.to,{day:'numeric',month:'short',year:'numeric'}):''}: ${esc(h.name)}<button data-act="delhol" data-d="${h.from}" aria-label="Delete holiday">×</button></span>`).join('')}</div>
+    <div class="grid-form" style="margin-top:12px;max-width:700px">
+      <label>From<input type="date" id="hol-d"></label><label>To (optional)<input type="date" id="hol-t"></label><label>Name<input type="text" id="hol-n" placeholder="e.g. Holi vacation"></label>
+      <button class="btn" data-act="addhol">Add</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Competency list</h2>
+    <p class="lead">The clerk picks from this list when tagging a class. To load the NMC list, download the sample file, fill in the Competencies sheet and upload it. Uploading adds new codes and updates the wording of existing ones. It never deletes anything.</p>
+    <div class="bar">
+      <input type="text" placeholder="Search" value="${esc(ui.compQ)}" data-ch="compq" aria-label="Search list">
+      <span class="help">${S.competencies.length} in the list</span><span class="grow"></span>
+      <button class="btn" data-act="comptemplate">Download sample file</button>
+      <button class="btn primary" data-act="compimport">Upload filled file</button>
+      ${S.competencies.length?`<button class="btn danger" data-act="compclear">Delete the whole list</button>`:''}
+    </div>
+    <div class="tbl-wrap scroll"><table style="min-width:600px"><thead><tr><th>Code</th><th>Topic</th><th>Competency</th><th></th></tr></thead><tbody>
+      ${comps.map(k=>`<tr><td><b>${esc(k.code)}</b></td><td>${esc(k.topic)}</td><td>${esc(k.text)}</td><td><button class="btn sm danger" data-act="delcompk" data-c="${esc(k.code)}">Delete</button></td></tr>`).join('') || `<tr><td colspan="4" class="help">Nothing in the list yet.</td></tr>`}
+    </tbody></table></div>
+    <div class="grid-form" style="margin-top:12px">
+      <label>Code<input type="text" id="ck-code" placeholder="FM2.1"></label>
+      <label>Topic<input type="text" id="ck-topic"></label>
+      <label style="grid-column:span 2">Competency<input type="text" id="ck-text"></label>
+      <button class="btn" data-act="addcompk">Add to list</button>
+    </div>
+  </div>
+  ${dataPanel()}`;
+}
+
+function dataPanel(){
+  return `<div class="panel">
+    <h2>Data, backup and first load</h2>
+    <div class="row-actions" style="margin-top:0">
+      <button class="btn" data-act="export">Download a copy as Excel</button>
+      <button class="btn" data-act="import">Load a roster from Excel</button>
+      <button class="btn" data-act="reload">Reload from the server</button>
+      ${ui.edit?`<button class="btn danger" data-act="reset">Start again with the sample roster</button>`:''}
+    </div>
+    <ol class="help" style="margin-top:14px">
+      <li>The roster lives in the department's Firebase project. Every change here is saved by itself, and everyone sees it within a second.</li>
+      <li>Download a copy as Excel now and then and keep it somewhere safe. That file also restores the whole roster if it is ever needed.</li>
+      <li>"Load a roster from Excel" takes the roster-data.xlsx file from the earlier version of this tool. Use it once, when setting up.</li>
+    </ol>
+  </div>`;
+}
+
+/* ============ rescheduling ============ */
+/* clash messages for a class placed at probe's date and time */
+function clashMsgs(probe, ignore){
+  const out = [], v = (probe.venue||'').trim().toLowerCase();
+  for(const x of S.sessions){
+    if(ignore.has(x.id) || !overlaps(x,probe)) continue;
+    if(x.courseId===probe.courseId && (x.batch==='All' || probe.batch==='All' || bats(x).some(b=>bats(probe).includes(b))))
+      out.push(`${course(probe.courseId).short} ${batsLower(probe)} already has a class then: ${describe(x)}.`);
+    const sameSlot = x.courseId===probe.courseId && x.start===probe.start && x.type===probe.type;
+    if(v && !sameSlot && (x.venue||'').trim().toLowerCase()===v)
+      out.push(`${probe.venue} is already in use then: ${describe(x)}.`);
+  }
+  return [...new Set(out)];
+}
+function movedTag(s){
+  if(!s.history || !s.history.length) return '';
+  const h = s.history[s.history.length-1];
+  const tip = s.history.map(x=>`${nice(x.fromDate)} ${t12(x.fromStart)} moved to ${nice(x.toDate)} ${t12(x.toStart)}: ${x.reason}${x.note?' ('+x.note+')':''}, done ${nice(x.on,{day:'numeric',month:'short'})}`).join('\n');
+  return `<br><span class="moved" title="${esc(tip)}">Moved from ${nice(h.fromDate,{day:'numeric',month:'short'})}</span>`;
+}
+/* other batches of the same practical/theory slot, moved together by default */
+const siblings = s => S.sessions.filter(x => x.id!==s.id && x.courseId===s.courseId && x.date===s.date && x.start===s.start && x.end===s.end && x.type===s.type);
+function reschChecks(){
+  const d = ui.dlg, s = sess(d.sid), out = [];
+  if(!d.date) out.push({k:'stop', t:'Pick the new date.'});
+  if(!d.start || !d.end || mins(d.end)<=mins(d.start)) out.push({k:'stop', t:'The end time must be after the start time.'});
+  if(out.length) return out;
+  if(d.date===s.date && d.start===s.start && d.end===s.end) out.push({k:'stop', t:'The new slot is the same as the current one.'});
+  const h = holiday(d.date); if(h) out.push({k:'warn', t:`${nice(d.date)} is a holiday (${h.name}). No teacher will be assigned unless you keep the current one.`});
+  const group = [s, ...(d.withSibs ? siblings(s) : [])], ids = new Set(group.map(x=>x.id));
+  for(const g of group){
+    const probe = {...g, date:d.date, start:d.start, end:d.end};
+    const aw = bats(g).map(b=>awayBlock(g.courseId, b, d.date)).find(Boolean);
+    if(aw) out.push({k:'stop', t:`${batsLabel(g)} is away on ${nice(d.date)} (${aw.reason}).`});
+    if(d.venue.trim()) probe.venue = d.venue.trim();
+    clashMsgs(probe, ids).forEach(t => out.push({k:'warn', t}));
+    const f = person(g.facultyId);
+    if(f && d.teacher==='keep'){
+      if(onLeave(f,d.date)) out.push({k:'warn', t:`${f.name} is on leave that day, so ${batsLower(g)} will be given to someone else.`});
+      else if(S.sessions.some(x=>!ids.has(x.id) && x.facultyId===f.id && overlaps(x,probe))) out.push({k:'warn', t:`${f.name} has another class at that time, so ${batsLower(g)} will be given to someone else.`});
+    }
+  }
+  if(!out.length) out.push({k:'fine', t:'No clashes found. Ready to move.'});
+  return out;
+}
+function applyResched(){
+  const d = ui.dlg, s = sess(d.sid);
+  if(reschChecks().some(x=>x.k==='stop')) return false;
+  const group = [s, ...(d.withSibs ? siblings(s) : [])], ids = new Set(group.map(x=>x.id)), redo = [];
+  for(const g of group){
+    g.history = g.history || [];
+    g.history.push({fromDate:g.date, fromStart:g.start, fromEnd:g.end, toDate:d.date, toStart:d.start, toEnd:d.end, reason:d.reason, note:d.note, on:TODAY});
+    g.date=d.date; g.start=d.start; g.end=d.end; g.notHeld=false; if(d.venue.trim()) g.venue=d.venue.trim();
+    const f = person(g.facultyId);
+    const keepOk = f && d.teacher==='keep' && !onLeave(f,g.date) && !S.sessions.some(x=>x.id!==g.id && x.facultyId===f.id && overlaps(x,g));
+    if(!keepOk){ g.facultyId=''; g.locked=false; redo.push(g); }
+  }
+  const r = redo.length ? autoAssign(redo,'fill') : {filled:0,missed:0};
+  return {n:group.length, r, redo:redo.length};
+}
+
+/* ============ dialogs ============ */
+function openDlg(d){ ui.dlg = d; renderDlg(); const el = document.getElementById('dlg'); if(!el.open) el.showModal(); }
+function closeDlg(){ ui.dlg = null; const el = document.getElementById('dlg'); if(el.open) el.close(); }
+/* first held class that taught this code to this batch (ignoring the class being edited) */
+function taughtOn(cid, code, b, skipId){
+  const s = S.sessions.filter(s => s.id!==skipId && s.courseId===cid && s.comps.includes(code) && (b==='All' || s.batch==='All' || bats(s).includes(b)) && isHeld(s) && !awayBlock(s.courseId, b==='All'?bats(s)[0]:b, s.date) && !holiday(s.date)).sort(byTime)[0];
+  return s ? s.date : '';
+}
+function pickStatus(k){
+  const d = ui.dlg, dates = d.bat.map(b=>taughtOn(d.cid, k.code, b, d.skip));
+  if(dates.every(Boolean)){ const last = dates.slice().sort().pop(); return {ok:true, t:'Taught '+nice(last,{day:'numeric',month:'short'})}; }
+  const left = d.bat.filter((b,i)=>!dates[i]);
+  return {ok:false, t: dates.some(Boolean) ? 'Pending for '+left.map(b=>b==='All'?'whole class':b).join(', ') : 'Pending'};
+}
+function compListHTML(){
+  const d = ui.dlg, q = d.q.toLowerCase();
+  let list = S.competencies.filter(k => (d.topic==='all'||k.topic===d.topic) && (!q || (k.code+' '+k.text).toLowerCase().includes(q))).map(k=>({k, st:pickStatus(k)}));
+  if(d.show==='pending') list = list.filter(x=>!x.st.ok); else if(d.show==='taught') list = list.filter(x=>x.st.ok);
+  if(!list.length) return `<div class="empty"><b>No match.</b>${S.competencies.length?'Try other words or another filter.':'The list is empty. Upload it under Setup.'}</div>`;
+  return list.slice(0,300).map(({k,st})=>`<label class="${st.ok?'ok':'bad'}"><input type="checkbox" data-ch="ctoggle" data-c="${esc(k.code)}" ${d.sel.includes(k.code)?'checked':''}><b>${esc(k.code)}</b><span>${esc(k.text)}<br><span class="tp">${esc(k.topic)}</span></span><span class="st">${esc(st.t)}</span></label>`).join('');
+}
+function renderDlg(){
+  const el = document.getElementById('dlg'), d = ui.dlg; if(!d) return;
+  if(d.kind==='comps'){
+    const topics = [...new Set(S.competencies.map(k=>k.topic))];
+    const who = d.bat.length===1 ? (d.bat[0]==='All'?'the whole class':'batch '+d.bat[0]) : 'batches '+d.bat.join(', ');
+    el.innerHTML = `<div class="dlg-h"><h2>Choose NMC competencies</h2><button class="btn sm" data-act="dlgclose">Close</button></div>
+    <div class="dlg-b">
+      <div class="bar" style="margin:0"><input type="text" id="cq" placeholder="Type a code or words, e.g. FM2.1 or hanging" value="${esc(d.q)}" style="flex:1" aria-label="Search">
+        <select data-ch="ctopic" aria-label="Topic"><option value="all">All topics</option>${topics.map(t=>`<option ${t===d.topic?'selected':''}>${esc(t)}</option>`).join('')}</select>
+        <select data-ch="cshow" aria-label="Show"><option value="all">All</option><option value="pending" ${d.show==='pending'?'selected':''}>Pending only</option><option value="taught" ${d.show==='taught'?'selected':''}>Already taught</option></select></div>
+      <p class="help" style="margin:8px 0 0">Colours are for ${esc(course(d.cid).short)}, ${esc(who)}. Green: already taught. Red: pending.</p>
+      <p class="help" style="margin:4px 0 0">Selected: <span id="csel">${d.sel.length?esc(d.sel.join(', ')):'none'}</span></p>
+      <div class="clist" id="clist">${compListHTML()}</div>
+    </div>
+    <div class="dlg-f"><button class="btn" data-act="dlgclose">Cancel</button><button class="btn primary" data-act="compsave">Use these</button></div>`;
+    return;
+  }
+  if(d.kind==='holfix'){
+    const to = d.to || d.date;
+    const list = S.sessions.filter(s=>s.date>=d.date && s.date<=to).sort(byTime), h = holiday(d.date);
+    el.innerHTML = `<div class="dlg-h"><h2>Classes on ${esc(nice(d.date,{weekday:'long',day:'numeric',month:'long'}))}${to!==d.date?' to '+esc(nice(to,{weekday:'long',day:'numeric',month:'long'})):''}</h2><button class="btn sm" data-act="dlgclose">Close</button></div>
+    <div class="dlg-b">
+      ${list.length ? `<p style="margin-top:0">${esc(h?h.name:'This day')} is now a holiday, and ${list.length} class${list.length===1?' is':'es are'} planned in it. Reschedule each one, or deal with them together.</p>
+      <div class="tbl-wrap"><table style="min-width:0"><tbody>${list.map(s=>`<tr><td>${esc(describe(s))}<br><span class="help">${esc(person(s.facultyId)?.name||'No teacher')}. ${esc(s.topic)}</span></td><td style="width:1%"><button class="btn sm" data-act="reschdlg" data-id="${s.id}" data-back="${d.date}">Reschedule</button></td></tr>`).join('')}</tbody></table></div>`
+      : `<p style="margin-top:0">All the classes on this day have been sorted.</p>`}
+    </div>
+    <div class="dlg-f">${list.length?`<button class="btn danger" data-act="holdel">Delete all ${list.length}</button><button class="btn" data-act="holkeep">Leave them for now</button>`:`<button class="btn primary" data-act="dlgclose">Done</button>`}</div>`;
+    return;
+  }
+  if(d.kind==='resched'){
+    const s = sess(d.sid), f = person(s.facultyId), sib = siblings(s), checks = reschChecks();
+    const reasons = ['Holiday declared','Teacher unavailable','Students busy (exam or event)','Venue unavailable','Not held on the day','Other'];
+    el.innerHTML = `<div class="dlg-h"><h2>Reschedule this class</h2><button class="btn sm" data-act="dlgclose">Close</button></div>
+    <div class="dlg-b">
+      <p style="margin-top:0"><b>${esc(describe(s))}</b><br><span class="help">${f?'With '+esc(f.name)+'. ':''}${esc(s.topic)}${isOver(s)?' This class is already over; moving it records that it was not held on the original date.':''}</span></p>
+      <div class="grid-form">
+        <label>New date<input type="date" data-ch="rs" data-f="date" value="${d.date}"></label>
+        <label>Starts<input type="time" data-ch="rs" data-f="start" value="${d.start}"></label>
+        <label>Ends<input type="time" data-ch="rs" data-f="end" value="${d.end}"></label>
+        <label>Venue (optional)<input type="text" data-ch="rs" data-f="venue" value="${esc(d.venue)}" placeholder="${esc(s.venue||'Same as before')}"></label>
+        <label>Reason<select data-ch="rs" data-f="reason">${reasons.map(r=>`<option ${r===d.reason?'selected':''}>${r}</option>`).join('')}</select></label>
+        <label style="grid-column:span 2">Note (optional)<input type="text" data-ch="rs" data-f="note" value="${esc(d.note)}" placeholder="e.g. Gandhi Jayanti declared holiday"></label>
+      </div>
+      <div class="field" style="margin-top:12px">Teacher
+        <div class="batches">
+          <label><input type="radio" name="rst" data-ch="rs" data-f="teacher" value="keep" ${d.teacher==='keep'?'checked':''}> Keep ${esc(f?.name||'the same teacher')} if free</label>
+          <label><input type="radio" name="rst" data-ch="rs" data-f="teacher" value="auto" ${d.teacher==='auto'?'checked':''}> Let auto-assign pick</label>
+        </div>
+      </div>
+      ${sib.length?`<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" data-ch="rs" data-f="withSibs" ${d.withSibs?'checked':''}> Also move the other ${sib.length} batch${sib.length===1?'':'es'} in this slot (${esc(sib.map(x=>batsLower(x)).join(', '))})</label>`:''}
+      <ul class="checks">${checks.map(c=>`<li class="${c.k}">${esc(c.t)}</li>`).join('')}</ul>
+    </div>
+    <div class="dlg-f"><button class="btn" data-act="dlgclose">Cancel</button><button class="btn primary" data-act="reschapply" ${checks.some(c=>c.k==='stop')?'disabled':''}>Move the class</button></div>`;
+    return;
+  }
+  if(d.kind==='swap'){
+    const s = sess(d.sid), from = person(s.facultyId);
+    const cands = S.faculty.filter(f=>f.active!==false && f.id!==s.facultyId);
+    const theirs = d.to ? S.sessions.filter(x=>x.facultyId===d.to && !isOver(x) && x.id!==s.id && !away(x)).sort(byTime) : [];
+    const sw = draftSwap();
+    el.innerHTML = `<div class="dlg-h"><h2>Swap this class</h2><button class="btn sm" data-act="dlgclose">Close</button></div>
+    <div class="dlg-b">
+      <p style="margin-top:0"><b>${esc(describe(s))}</b><br><span class="help">Now with ${esc(from?.name||'')}. ${esc(s.topic)}</span></p>
+      <div class="grid-form">
+        <label>Hand over to<select data-ch="swto"><option value="">Choose a colleague</option>${cands.map(f=>{ const note = onLeave(f,s.date)?' (on leave)':busy(f.id,s)?' (has a clash)':!allowed(f,s.courseId)?' (not on course list)':''; return `<option value="${f.id}" ${d.to===f.id?'selected':''}>${esc(f.name+note)}</option>`; }).join('')}</select></label>
+        <label>In exchange (optional)<select data-ch="swex" ${d.to?'':'disabled'}><option value="">Nothing, just hand over</option>${theirs.map(x=>{ const busyFrom = from && (onLeave(from,x.date) || S.sessions.some(y=>y.id!==x.id && y.id!==s.id && y.facultyId===from.id && overlaps(y,x))); return `<option value="${x.id}" ${d.ex===x.id?'selected':''}>${esc(describe(x))}${busyFrom?esc(` (${from.name} is not free then)`):''}</option>`; }).join('')}</select></label>
+        <label style="grid-column:1/-1">Reason<input type="text" id="swreason" value="${esc(d.reason)}" data-ch="swreason" placeholder="e.g. Court summons that day"></label>
+      </div>
+      ${d.to?`<p class="help">${esc(person(d.to)?.name||'')} will get an email and can accept or decline. Nothing changes until they accept.</p>`:''}
+    </div>
+    <div class="dlg-f">
+      ${d.to?`<button class="btn" data-act="dlgclose">Cancel</button>
+      <button class="btn primary" data-act="swapsend">Send the offer</button>
+      ${ui.edit?`<button class="btn" data-act="swaplogapply">Apply now, without asking</button>`:''}`:`<button class="btn" data-act="dlgclose">Cancel</button>`}
+    </div>`;
+  }
+}
+function draftSwap(){
+  const d = ui.dlg, s = sess(d.sid), ex = d.ex ? sess(d.ex) : null;
+  return {id:uid(), loggedOn:TODAY, sessionId:s.id, classText:describe(s), fromId:s.facultyId, toId:d.to, exchangeId:ex?ex.id:'', exchangeText:ex?describe(ex):'', reason:d.reason, status:'Requested', decidedOn:''};
+}
+/* the same checks the office page makes, run before a teacher accepts */
+function swapProblems(sw){
+  const s = sess(sw.sessionId), to = person(sw.toId), out = [];
+  if(!s) return ['That class is no longer on the roster'];
+  if(!to) return ['That teacher is no longer on the faculty list'];
+  if(onLeave(to,s.date)) out.push(`${to.name} is on leave that day`);
+  if(S.sessions.some(x=>x.id!==s.id && x.id!==sw.exchangeId && x.facultyId===to.id && overlaps(x,s))) out.push(`${to.name} has another class at that time`);
+  if(!allowed(to,s.courseId)) out.push(`${to.name} is not on the teacher list for ${course(s.courseId).short}`);
+  const ex = sw.exchangeId ? sess(sw.exchangeId) : null, from = person(sw.fromId);
+  if(ex && from){
+    if(onLeave(from,ex.date)) out.push(`${from.name} is on leave on the day of the exchange class`);
+    if(S.sessions.some(x=>x.id!==ex.id && x.id!==s.id && x.facultyId===from.id && overlaps(x,ex))) out.push(`${from.name} has another class at the time of the exchange class`);
+  }
+  return out;
+}
+function applySwap(sw){
+  const s = sess(sw.sessionId), to = person(sw.toId);
+  if(!s || !to){ toast('That class or teacher is no longer on the roster'); return false; }
+  const ex = sw.exchangeId ? sess(sw.exchangeId) : null;
+  const probs = [];
+  if(onLeave(to,s.date)) probs.push(`${to.name} is on leave that day`);
+  if(S.sessions.some(x=>x.id!==s.id && x.id!==sw.exchangeId && x.facultyId===to.id && overlaps(x,s))) probs.push(`${to.name} has another class at that time`);
+  const from = person(sw.fromId);
+  if(ex && from){
+    if(onLeave(from,ex.date)) probs.push(`${from.name} is on leave on the day of the exchange class`);
+    if(S.sessions.some(x=>x.id!==ex.id && x.id!==s.id && x.facultyId===from.id && overlaps(x,ex))) probs.push(`${from.name} has another class at the time of the exchange class`);
+  }
+  if(probs.length && !confirm(probs.join('. ')+'. Apply the swap anyway?')) return false;
+  s.facultyId = sw.toId; s.locked = true;
+  if(ex){ ex.facultyId = sw.fromId; ex.locked = true; }
+  sw.status = 'Accepted'; sw.decidedOn = TODAY;
+  return true;
+}
+
+/* ============ actions ============ */
+function act(a, el){
+  const id = el.dataset.id, v = el.dataset.v;
+  switch(a){
+    case 'tab': ui.tab=v; break;
+    case 'course': ui.course=v; break;
+    case 'view': ui.view=v; break;
+    case 'wl': ui.wlRange=v; break;
+    case 'nav': {
+      if(v==='0'){ ui.anchor=TODAY; break; }
+      if(ui.tab==='roster' && ui.view==='cal'){ const d=parse(ui.anchor); ui.anchor=iso(new Date(d.getFullYear(), d.getMonth()+(+v), 1)); }
+      else ui.anchor = addDays(ui.anchor, 7*(+v));
+      break; }
+    case 'navm': { const d=parse(ui.anchor); ui.anchor=iso(new Date(d.getFullYear(), d.getMonth()+(+v), 1)); break; }
+    case 'msgnav': ui.msgWeek = v==='0' ? addDays(monday(TODAY),7) : addDays(ui.msgWeek, 7*(+v)); break;
+    case 'copymsg': copyText(ui.msgs[+el.dataset.i]); return;
+    case 'copyall': copyText(ui.msgs.join('\n\n----------\n\n')); return;
+    case 'lock': { const s=sess(id); s.locked=!s.locked; save(); break; }
+    case 'delsess': if(!confirm('Delete this class?')) return; S.sessions=S.sessions.filter(s=>s.id!==id); save(); toast('Class deleted'); break;
+    case 'print': window.print(); return;
+    case 'csv': exportCSV(); return;
+    case 'covcsv': exportCovCSV(); return;
+    case 'ics': exportICS(); return;
+    case 'fillview': { const [f,t,a1,b1]=range(); const r=autoAssign(visible(a1||f,b1||t),'fill'); save(); toast(report(r)); break; }
+    case 'fillweek': case 'redoweek': {
+      const m=monday(ui.anchor), wk=S.sessions.filter(s=>s.date>=m && s.date<=addDays(m,6));
+      if(a==='redoweek' && !confirm('Reassign every unlocked class this week?')) return;
+      const r=autoAssign(wk, a==='redoweek'?'redo':'fill'); save(); toast(report(r)); break; }
+    case 'copyweek': copyWeek(); break;
+    case 'clearweek': { const m=monday(ui.anchor), to=addDays(m,6), n=S.sessions.filter(s=>s.date>=m&&s.date<=to).length;
+      if(!n || !confirm(`Delete all ${n} classes in this week?`)) return;
+      S.sessions=S.sessions.filter(s=>s.date<m||s.date>to); save(); toast('Week cleared'); break; }
+    case 'addclass': addClass(); return;
+    /* competencies on classes */
+    case 'pickcomp': {
+      snapshotPF();
+      let cid, bat, skip='';
+      if(id==='pf'){ cid = ui.pf.course || S.courses[0]?.id; bat = ui.pf.batches||[]; }
+      else { const s=sess(id); cid=s.courseId; bat=bats(s); skip=s.id; }
+      const cb = course(cid).batches;
+      if(!bat.length || bat.includes('All')) bat = cb.length ? [...cb] : ['All'];
+      openDlg({kind:'comps', target:id, sel: id==='pf' ? [...ui.pfComps] : [...sess(id).comps], q:'', topic:'all', show:'all', cid, bat, skip}); return; }
+    case 'compsave': { const d=ui.dlg; if(d.target==='pf') ui.pfComps=d.sel; else { sess(d.target).comps=d.sel; save(); } closeDlg(); break; }
+    case 'rmcomp': { const s=sess(id); s.comps=s.comps.filter(c=>c!==el.dataset.c); save(); break; }
+    case 'rmpfcomp': ui.pfComps=ui.pfComps.filter(c=>c!==el.dataset.c); break;
+    case 'dlgclose': closeDlg(); return;
+    /* swaps */
+    case 'swapdlg': openDlg({kind:'swap', sid:id, to:'', ex:'', reason:''}); return;
+    case 'reschdlg': { const s=sess(id); if(ui.dlg && ui.dlg.kind==='holfix') ui.holfixTo=ui.dlg.to; openDlg({kind:'resched', back:el.dataset.back||'', sid:id, date:s.date<TODAY?TODAY:s.date, start:s.start, end:s.end, venue:'', reason:'Holiday declared', note:'', teacher:'keep', withSibs:true}); return; }
+    case 'reschapply': { const back=ui.dlg.back; const res=applyResched(); if(!res) return; save();
+      toast(`Moved ${res.n} class${res.n===1?'':'es'}.${res.redo?' '+report(res.r):''}`);
+      if(back){ render(); openDlg({kind:'holfix', date:back, to:ui.holfixTo}); return; }
+      closeDlg(); break; }
+    case 'notheld': { const s=sess(id); s.notHeld=!s.notHeld; save(); toast(s.notHeld?'Marked as not held. Its competencies go back to pending.':'Marked as held'); break; }
+    case 'holdel': { const d=ui.dlg.date, t=ui.dlg.to||d, n=S.sessions.filter(s=>s.date>=d && s.date<=t).length;
+      if(!confirm(`Delete all ${n} classes from ${nice(d)} to ${nice(t)}?`)) return;
+      S.sessions=S.sessions.filter(s=>s.date<d || s.date>t); save(); closeDlg(); toast('Classes deleted'); break; }
+    case 'holkeep': closeDlg(); toast('Left on the roster, marked as holiday'); break;
+
+    case 'exportcontacts': exportContacts(); return;
+    case 'importcontacts': if(!window.XLSX){ toast('The Excel reader could not load.'); return; } document.getElementById('importContacts').click(); return;
+
+    case 'swapsend': {
+      const d = ui.dlg; d.reason = document.getElementById('swreason').value;
+      const s = sess(d.sid);
+      setState('Sending');
+      RT.offerSwap({sessionId:s.id, classText:describe(s), fromId:s.facultyId, toId:d.to, exchangeId:d.ex||'',
+          exchangeText:d.ex?describe(sess(d.ex)):'', reason:d.reason||''})
+        .then(()=>{ setState(''); closeDlg(); toast('Offer sent. Your colleague will be emailed.'); })
+        .catch(e=>{ setState(''); toast(e.message||'Could not send the offer'); });
+      return; }
+    case 'swaplogapply': {
+      ui.dlg.reason = document.getElementById('swreason').value;
+      const sw = draftSwap();
+      if(!applySwap(sw)) return;
+      S.swaps.push(sw); save(); closeDlg(); toast('Swap applied'); break; }
+    case 'swapaccept': case 'swapdecline2': {
+      const sw = S.swaps.find(x=>x.id===id);
+      if(a==='swapaccept'){
+        const probs = swapProblems(sw);
+        if(probs.length && !confirm(probs.join('. ')+'. Take it anyway?')) return;
+      }
+      setState('Sending');
+      RT.respondSwap(sw, a==='swapaccept')
+        .then(()=>{ setState(''); toast(a==='swapaccept'?'Accepted. The roster has changed.':'Declined.'); })
+        .catch(e=>{ setState(''); toast(e.message||'Could not answer the offer'); });
+      return; }
+    case 'reload': reload(); return;
+    case 'swapdel': if(!confirm('Delete this entry from the log? The roster itself is not changed.')) return; S.swaps=S.swaps.filter(x=>x.id!==id); save(); break;
+    /* setup */
+    case 'addrank': { const r={id:uid(),name:'New rank',w:{}}; S.types.forEach(t=>r.w[t.id]=1); S.ranks.push(r); save(); break; }
+    case 'addtype': { const n=document.getElementById('ty-n').value.trim(); if(!n){ toast('Give the type a name'); return; }
+      const id=n.toLowerCase().replace(/\W+/g,'-').slice(0,20)||uid();
+      if(S.types.some(t=>t.id===id)){ toast('There is already a type with that name'); return; }
+      S.types.push({id, name:n, style:'hatch'}); S.ranks.forEach(r=>r.w[id]=1); save(); break; }
+    case 'deltype': { const n=S.sessions.filter(x=>x.type===id).length;
+      if(S.types.length<2){ toast('Keep at least one class type'); return; }
+      if(!confirm(n?`${n} classes use this type. Delete the type and move them to ${S.types.find(t=>t.id!==id).name}?`:'Delete this class type?')) return;
+      const other=S.types.find(t=>t.id!==id).id;
+      S.sessions.forEach(x=>{ if(x.type===id) x.type=other; });
+      S.courses.forEach(c=>{ if(c.targets) delete c.targets[id]; });
+      S.ranks.forEach(r=>delete r.w[id]);
+      S.types=S.types.filter(t=>t.id!==id); save(); break; }
+    case 'addrot': { const c=document.getElementById('rot-c').value, n=document.getElementById('rot-n').value.trim();
+      if(!c||!n){ toast('Pick the course and give the rotation a name'); return; }
+      S.rotations.push({id:uid(), courseId:c, name:n, entries:[]}); save(); break; }
+    case 'delrot': { const r=S.rotations.find(x=>x.id===id); if(!confirm(`Delete "${r.name}"? Classes already made from it stay as they are.`)) return;
+      S.rotations=S.rotations.filter(x=>x.id!==id); save(); break; }
+    case 'addrotentry': { const r=S.rotations.find(x=>x.id===id);
+      const from=document.getElementById('re-f-'+id).value, to=document.getElementById('re-t-'+id).value||from;
+      const bl=document.getElementById('re-b-'+id).value.split(',').map(x=>x.trim()).filter(Boolean);
+      if(!from||!bl.length){ toast('Give the dates and at least one batch'); return; }
+      r.entries.push({from, to: to<from?from:to, batches:bl}); save(); break; }
+    case 'delrotentry': { const r=S.rotations.find(x=>x.id===id); const sorted=r.entries.slice().sort((a,b)=>a.from.localeCompare(b.from));
+      const e=sorted[+el.dataset.i]; r.entries=r.entries.filter(x=>x!==e); save(); break; }
+    case 'delrank': if(S.faculty.some(f=>f.rank===id)){ toast('Move the teachers in this rank to another rank first'); return; } if(!confirm('Delete this rank?')) return; S.ranks=S.ranks.filter(r=>r.id!==id); save(); break;
+    case 'addfac': S.faculty.push({id:uid(),name:'New teacher',rank:S.ranks[S.ranks.length-1]?.id,active:true,leaves:[],phone:'',email:''}); save(); break;
+    case 'delfac': { const f=person(id); if(!confirm(`Delete ${f.name}? Their classes become unassigned. To keep their record, untick Active instead.`)) return;
+      S.faculty=S.faculty.filter(x=>x.id!==id); S.sessions.forEach(s=>{ if(s.facultyId===id){ s.facultyId=''; s.locked=false; } });
+      S.courses.forEach(c=>c.allowed=c.allowed.filter(x=>x!==id)); save(); break; }
+    case 'addleave': { const from=document.getElementById('lf-'+id).value, to=document.getElementById('lt-'+id).value||from;
+      if(!from){ toast('Pick the first day of leave'); return; } const f=person(id); f.leaves.push({from, to: to<from?from:to});
+      const t2 = to<from?from:to;
+      let clash=S.sessions.filter(s=>s.facultyId===id && !s.locked && s.date>=from && s.date<=t2);
+      const hand=S.sessions.filter(s=>s.facultyId===id && s.locked && s.date>=from && s.date<=t2);
+      let kept = 0;
+      if(hand.length){
+        if(confirm(`${hand.length} class${hand.length===1?' was':'es were'} set by hand for ${f.name} in these dates. Hand ${hand.length===1?'it':'them'} to others as well?`)){ hand.forEach(s=>s.locked=false); clash=clash.concat(hand); }
+        else kept = hand.length;
+      }
+      clash.forEach(s=>s.facultyId=''); if(clash.length) autoAssign(clash,'fill');
+      save(); toast(`Leave added.${clash.length?` ${clash.length} class${clash.length===1?'':'es'} handed to others.`:''}${kept?` ${kept} left with ${f.name} and flagged "On leave".`:''}`); break; }
+    case 'delleave': person(id).leaves.splice(+el.dataset.i,1); save(); break;
+    case 'allowtoggle': return;
+    case 'addcourse': S.courses.push({id:uid(),name:'New course',short:'NEW',color:'#6B5B95',batches:[],allowed:[]}); save(); break;
+    case 'delcourse': { const n=S.sessions.filter(s=>s.courseId===id).length;
+      if(!confirm(`Delete this course${n?` and its ${n} classes`:''}?`)) return;
+      S.courses=S.courses.filter(c=>c.id!==id); S.sessions=S.sessions.filter(s=>s.courseId!==id); S.blocks=S.blocks.filter(b=>b.courseId!==id); if(ui.course===id) ui.course='all'; save(); break; }
+    case 'addblock': addBlock(); return;
+    case 'delblock': if(!confirm('Delete this entry? The batch will be treated as present on those days again.')) return; S.blocks=S.blocks.filter(b=>b.id!==id); save(); break;
+    case 'addhol': { const d=document.getElementById('hol-d').value, t=document.getElementById('hol-t').value||d, n=document.getElementById('hol-n').value.trim();
+      if(!d||!n){ toast('Give the first date and a name'); return; }
+      const to = t<d ? d : t;
+      S.holidays=S.holidays.filter(h=>h.from!==d); S.holidays.push({from:d, to, name:n}); save();
+      const hit=S.sessions.filter(s=>s.date>=d && s.date<=to);
+      if(hit.length){ render(); openDlg({kind:'holfix', date:d, to}); return; } break; }
+    case 'delhol': S.holidays=S.holidays.filter(h=>h.from!==el.dataset.d); save(); break;
+    case 'addcompk': { const code=document.getElementById('ck-code').value.trim(), topic=document.getElementById('ck-topic').value.trim(), text=document.getElementById('ck-text').value.trim();
+      if(!code||!text){ toast('Give the code and the competency'); return; }
+      S.competencies=S.competencies.filter(k=>k.code!==code); S.competencies.push({code,topic:topic||'Other',text}); sortComps(); save(); break; }
+    case 'delcompk': S.competencies=S.competencies.filter(k=>k.code!==el.dataset.c); save(); break;
+    case 'compclear': if(!confirm('Delete the whole competency list? Classes keep their codes.')) return; S.competencies=[]; save(); break;
+    case 'compimport': if(!window.XLSX){ toast('The Excel reader could not load. Check the internet connection.'); return; } document.getElementById('importComps').click(); return;
+    case 'comptemplate': compTemplate(); return;
+    case 'compload': {
+      const d=ui.dlg, r=d.r;
+      if(d.rmDemo) S.competencies = S.competencies.filter(k=>!k.code.startsWith('DEMO'));
+      r.good.forEach(k=>{ const e=S.competencies.find(x=>x.code.toLowerCase()===k.code.toLowerCase()); if(e){ e.text=k.text; e.topic=k.topic; } else S.competencies.push(k); });
+      sortComps(); save(); closeDlg();
+      toast(`Loaded: ${r.added} new, ${r.updated} updated${r.skipped.length?`, ${r.skipped.length} rows skipped`:''}`); break; }
+    /* data */
+    case 'export': exportXLSX(); return;
+    case 'import': document.getElementById('importFile').click(); return;
+    case 'reset': if(!confirm('Replace everything in this browser with the sample data?')) return; sample(); save(); break;
+  }
+  render();
+}
+
+function change(c, el){
+  const id = el.dataset.id, f = el.dataset.f;
+  switch(c){
+    case 'edit': ui.edit = el.checked && ME.isOffice; break;
+    case 'type': ui.type = el.value; break;
+    case 'teacher': ui.teacher = el.value; break;
+    case 'pfcourse': snapshotPF(); ui.pf.batches=['All']; ui.pf.batchesFor=el.value; ui.pf.course=el.value; ui.pf.mode='separate'; render(); return;
+    case 'pfmode': snapshotPF(); ui.pf.mode=el.value; render(); return;
+    case 'assign': { const s=sess(id); s.facultyId=el.value; s.locked=!!el.value; save(); break; }
+    case 'sfield': sess(id)[f] = el.value; save(); return;
+    case 'set': S.settings[f] = el.value; save(); break;
+    case 'rank': { const r=S.ranks.find(x=>x.id===id); r[f] = el.value; save(); break; }
+    case 'rankw': { const r=S.ranks.find(x=>x.id===id); r.w[f] = Math.max(0, +el.value||0); save(); break; }
+    case 'ctype': { const t=S.types.find(x=>x.id===id); t[f] = el.value; save(); break; }
+    case 'fac': { const p=person(id); p[f] = (f==='active'||f==='office') ? el.checked : el.value.trim();
+      if(f==='name' && S.faculty.some(x=>x.id!==id && x.name.trim().toLowerCase()===p.name.toLowerCase())) toast('Two teachers now share this name. Add an initial so the Excel file can tell them apart.');
+      save(); break; }
+    case 'course': {
+      const k=S.courses.find(x=>x.id===id);
+      if(f==='targets'){
+        const tg={};
+        el.value.split(';').map(x=>x.trim()).filter(Boolean).forEach(part=>{
+          const m = part.match(/^(.*?)[\s:]+([\d.]+)$/); if(!m) return;
+          const ty = S.types.find(t=>t.name.toLowerCase()===m[1].trim().toLowerCase() || t.id===m[1].trim().toLowerCase());
+          if(ty) tg[ty.id] = +m[2]; else toast(`"${m[1].trim()}" is not a class type, so that target was left out`);
+        });
+        k.targets=tg; save(); break; }
+      if(f!=='batches'){ k[f]=el.value; save(); break; }
+      const old=k.batches, nw=el.value.split(',').map(x=>x.trim()).filter(Boolean);
+      const removed=old.filter(b=>!nw.includes(b)), added=nw.filter(b=>!old.includes(b));
+      const used=removed.filter(b=>S.sessions.some(s=>s.courseId===id && s.batch===b) || S.blocks.some(x=>x.courseId===id && x.batches.includes(b)));
+      if(used.length){
+        const map = removed.length===added.length ? removed.map((b,i)=>b+' to '+added[i]).join(', ') : '';
+        if(map && confirm(`Classes already exist for ${used.join(', ')}. Rename them in the existing classes and away entries too (${map})?`)){
+          const m = Object.fromEntries(removed.map((b,i)=>[b,added[i]]));
+          S.sessions.forEach(s=>{ if(s.courseId===id && m[s.batch]) s.batch=m[s.batch]; });
+          S.blocks.forEach(x=>{ if(x.courseId===id) x.batches=x.batches.map(b=>m[b]||b); });
+        } else if(!confirm(`${S.sessions.filter(s=>s.courseId===id && used.includes(s.batch)).length} existing classes use ${used.join(', ')}. They will not appear under the new batch names. Save the change anyway?`)){ render(); return; }
+      }
+      k.batches=nw; save(); break; }
+    case 'allow': { const k=S.courses.find(x=>x.id===id); k.allowed = el.checked ? [...new Set([...k.allowed,f])] : k.allowed.filter(x=>x!==f); ui.openAllow=id; save(); break; }
+    case 'bkcourse': ui.bkCourse = el.value; ui.bk = {f:document.getElementById('bk-f').value, t:document.getElementById('bk-t').value, r:document.getElementById('bk-r').value}; break;
+    case 'covtopic': ui.covTopic = el.value; break;
+    case 'covq': ui.covQ = el.value; break;
+    case 'covpend': ui.covPending = el.checked; break;
+    case 'compq': ui.compQ = el.value; break;
+    case 'swapfilter': ui.swapFilter = el.value; break;
+    case 'pref': { ME.prefs = ME.prefs||{}; ME.prefs[f] = el.checked;
+      RT.setPrefs(ME.prefs).then(()=>toast('Saved')).catch(e=>toast(e.message||'Could not save'));
+      break; }
+    /* dialog fields: re-render only the dialog */
+    case 'ctoggle': { const d=ui.dlg, code=el.dataset.c; d.sel = el.checked ? [...d.sel, code] : d.sel.filter(x=>x!==code); document.getElementById('csel').textContent = d.sel.length?d.sel.join(', '):'none'; return; }
+    case 'ctopic': ui.dlg.topic = el.value; renderDlg(); return;
+    case 'cshow': ui.dlg.show = el.value; renderDlg(); return;
+    case 'rmdemo': ui.dlg.rmDemo = el.checked; return;
+    case 'swto': ui.dlg.to = el.value; ui.dlg.ex=''; ui.dlg.reason=document.getElementById('swreason').value; renderDlg(); return;
+    case 'swex': ui.dlg.ex = el.value; ui.dlg.reason=document.getElementById('swreason').value; renderDlg(); return;
+    case 'swreason': ui.dlg.reason = el.value; renderDlg(); return;
+    case 'rs': ui.dlg[f] = f==='withSibs' ? el.checked : el.value; renderDlg(); return;
+  }
+  render();
+}
+
+function report(r){ return r.missed ? `Filled ${r.filled}. ${r.missed} class${r.missed===1?' has':'es have'} no free teacher; check leave, clashes or the course's teacher list.` : `Filled ${r.filled} class${r.filled===1?'':'es'}.`; }
+const sortComps = () => S.competencies.sort((a,b)=>a.code.localeCompare(b.code, undefined, {numeric:true}));
+
+function addClass(){
+  const g = id => document.getElementById(id).value;
+  const date=g('pf-day'), start=g('pf-start'), end=g('pf-end'), courseId=g('pf-course'), type=g('pf-type');
+  const freq=+g('pf-freq'), until=g('pf-until'), topic=g('pf-topic').trim(), venue=g('pf-venue').trim();
+  const mode=(document.querySelector('.pf-m:checked')||{}).value || 'separate';
+  const rot = mode==='rotation' ? S.rotations.find(r=>r.id===(document.getElementById('pf-rot')||{}).value) : null;
+  let batches=[...document.querySelectorAll('.pf-b:checked')].map(x=>x.value);
+  if(!start||!end||mins(end)<=mins(start)){ toast('The end time must be after the start time'); return; }
+  if(mode==='rotation' && !rot){ toast('Pick a rotation, or add one under Setup'); return; }
+  if(mode!=='rotation'){
+    if(!batches.length){ toast('Tick the whole class or at least one batch'); return; }
+    if(batches.includes('All')) batches=['All'];
+  }
+  /* the dates this class falls on */
+  const term = termOf(courseId);
+  const stop = until==='term' ? (term.to || addDays(date, 7*52)) : addDays(date, 7*(+until));
+  const dates = [];
+  if(freq===0) dates.push(date); else for(let d=date; d<=stop; d=addDays(d,7*freq)) dates.push(d);
+
+  const made=[]; let skipped=0, offRot=0;
+  for(const d of dates){
+    if(holiday(d)) { skipped++; continue; }
+    let groups;
+    if(mode==='rotation'){ const e = rotationOn(rot, d); if(!e){ offRot++; continue; } groups=[e.batches.join('+')]; }
+    else if(mode==='together') groups=[batches.join('+')];
+    else groups=batches;
+    for(const b of groups){
+      const probe={id:uid(), date:d, start, end, courseId, type, batch:b, topic, comps:[...ui.pfComps], venue, facultyId:'', locked:false, history:[], notHeld:false};
+      if(away(probe)){ skipped++; continue; }
+      made.push(probe);
+    }
+  }
+  if(!made.length){ toast(`Nothing to add${skipped?`: every date is a holiday or the batch is away`:offRot?': the rotation covers none of those dates':''}`); return; }
+  const msgs=[...new Set(made.flatMap(m=>clashMsgs(m, new Set())))];
+  if(msgs.length && !confirm(`Clashes found:\n\n- ${msgs.slice(0,6).join('\n- ')}${msgs.length>6?`\n- and ${msgs.length-6} more`:''}\n\nAdd the class anyway?`)) return;
+  /* warn if this takes the course past its hour target for this type */
+  const target = +(course(courseId).targets||{})[type] || 0;
+  if(target){
+    const already = hSum(S.sessions.filter(x=>x.courseId===courseId && x.type===type && !x.notHeld));
+    const after = already + hSum(made);
+    if(after > target && !confirm(`${course(courseId).short} ${typeName(type).toLowerCase()} has a target of ${target} hours. ${already.toFixed(1)} are already planned and this adds ${hSum(made).toFixed(1)}, making ${after.toFixed(1)}. Add them anyway?`)) return;
+  }
+  made.forEach(m=>S.sessions.push(m));
+  const r = autoAssign(made,'fill'); save();
+  snapshotPF(); ui.pf.topic=''; ui.pfComps=[];
+  render();
+  toast(`Added ${made.length} class${made.length===1?'':'es'} over ${dates.length} date${dates.length===1?'':'s'}${skipped?`, skipped ${skipped} (holiday or batch away)`:''}. ${report(r)}`);
+}
+function addBlock(){
+  const cid=document.getElementById('bk-c').value, from=document.getElementById('bk-f').value, to=document.getElementById('bk-t').value||from, reason=document.getElementById('bk-r').value;
+  let batches=[...document.querySelectorAll('.bk-b:checked')].map(x=>x.value);
+  if(!cid||!from){ toast('Pick the course and the first day'); return; }
+  if(!batches.length){ toast('Tick the whole class or at least one batch'); return; }
+  if(batches.includes('All')) batches=['All'];
+  const b={id:uid(), courseId:cid, batches, from, to:to<from?from:to, reason};
+  S.blocks.push(b);
+  const hit = S.sessions.filter(s=>s.courseId===cid && s.date>=b.from && s.date<=b.to && (batches.includes('All') || batches.includes(s.batch)));
+  if(hit.length && confirm(`${hit.length} class${hit.length===1?' is':'es are'} already planned for ${batches.includes('All')?'this class':'these batches'} on those days. Delete ${hit.length===1?'it':'them'}? (Cancel keeps them, shown as "batch away".)`)){
+    const ids=new Set(hit.map(s=>s.id)); S.sessions=S.sessions.filter(s=>!ids.has(s.id));
+  } else hit.forEach(s=>{ if(!s.locked) s.facultyId=''; });
+  ui.bk=null; save(); render(); toast('Marked as away');
+}
+
+function copyWeek(){
+  const m=monday(ui.anchor), prev=addDays(m,-7);
+  const src=S.sessions.filter(s=>s.date>=prev && s.date<=addDays(prev,6));
+  if(!src.length){ toast('Last week has no classes to copy'); return; }
+  if(S.sessions.some(s=>s.date>=m && s.date<=addDays(m,6)) && !confirm('This week already has classes. Add last week\'s on top of them?')) return;
+  const made=[];
+  for(const s of src){ const d=addDays(s.date,7); if(holiday(d) || awayBlock(s.courseId,s.batch,d)) continue;
+    const n={...s,id:uid(),date:d,comps:[],topic:'',facultyId:'',locked:false,history:[]}; S.sessions.push(n); made.push(n); }
+  const r=autoAssign(made,'fill'); save(); toast(`Copied ${made.length} classes (topics left blank for this week). ${report(r)}`);
+}
+
+function exportCSV(){
+  const [f,t,a,b]=range(), list=visible(a||f,b||t);
+  const q = x => `"${String(x??'').replace(/"/g,'""')}"`;
+  const lines=[['Date','Day','Start','End','Course','Type','Batch','Topic','Competencies','Venue','Teacher'].join(',')];
+  list.forEach(s=>lines.push([s.date,DAYS[dow(s.date)],s.start,s.end,course(s.courseId).name,typeName(s.type),batsLabel(s),s.topic,s.comps.join(', '),s.venue,person(s.facultyId)?.name||(away(s)?'Batch away':'Unassigned')].map(q).join(',')));
+  download(`roster-${ui.course==='all'?'all-courses':course(ui.course).short.replace(/\W+/g,'-')}-${a||f}.csv`, '\ufeff'+lines.join('\r\n'), 'text/csv');
+}
+function exportCovCSV(){
+  const c=course(covCourse()), batches=c.batches.length?c.batches:['All'];
+  const q = x => `"${String(x??'').replace(/"/g,'""')}"`;
+  const lines=[['Code','Topic','Competency',...batches.map(batchLabel)].map(q).join(',')];
+  S.competencies.forEach(k=>lines.push([k.code,k.topic,k.text,...batches.map(b=>{const x=covStatus(c.id,k.code,b);return x.k==='done'?'Done '+x.d:x.k==='plan'?'Planned '+x.d:'Pending';})].map(q).join(',')));
+  download(`competency-coverage-${c.short.replace(/\W+/g,'-')}.csv`, '\ufeff'+lines.join('\r\n'), 'text/csv');
+}
+
+function exportICS(){
+  const f=person(ui.teacher); if(!f) return;
+  const list=S.sessions.filter(s=>s.facultyId===f.id && s.date>=TODAY && !away(s)).sort(byTime);
+  const dt=(d,t)=>d.replace(/-/g,'')+'T'+t.replace(':','')+'00';
+  const ev=list.map(s=>{const c=course(s.courseId);return ['BEGIN:VEVENT',`UID:${s.id}@dept-roster`,`DTSTAMP:${dt(TODAY,'00:00')}`,`DTSTART:${dt(s.date,s.start)}`,`DTEND:${dt(s.date,s.end)}`,
+    `SUMMARY:${c.short} ${typeName(s.type)}${s.batch==='All'?'':' '+batsLabel(s)}: ${s.topic||''}`.replace(/[,;]/g,'\\$&'),
+    `LOCATION:${(s.venue||'').replace(/[,;]/g,'\\$&')}`,'END:VEVENT'].join('\r\n');});
+  download(`${f.name.replace(/\W+/g,'-')}-classes.ics`, ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Dept Roster//EN',...ev,'END:VCALENDAR'].join('\r\n'), 'text/calendar');
+  toast(`${list.length} upcoming classes exported`);
+}
+
+/* ============ Excel ============ */
+const serial = s => Date.UTC(+s.slice(0,4), +s.slice(5,7)-1, +s.slice(8,10))/86400000 + 25569;
+function xdate(v){
+  if(v===''||v==null) return '';
+  if(typeof v==='number'){ const d=new Date(Math.round((v-25569)*86400000)); return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate()); }
+  if(v instanceof Date) return iso(v);
+  const t=String(v).trim(); let m;
+  if((m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return m[1]+'-'+pad(m[2])+'-'+pad(m[3]);
+  if((m=t.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/))) return m[3]+'-'+pad(m[2])+'-'+pad(m[1]);
+  const d=new Date(t); return isNaN(d) ? '' : iso(d);
+}
+function xtime(v){
+  if(typeof v==='number'){ const mm=Math.round((v%1)*1440); return pad(Math.floor(mm/60))+':'+pad(mm%60); }
+  const m=String(v||'').trim().match(/^(\d{1,2})[:.](\d{2})\s*(am|pm)?/i); if(!m) return '';
+  let h=+m[1]; if(m[3]){ const pm=m[3].toLowerCase()==='pm'; if(pm&&h<12) h+=12; if(!pm&&h===12) h=0; }
+  return pad(h)+':'+m[2];
+}
+const yes = v => /^(y|true|1)/i.test(String(v).trim());
+function makeSheet(rows, widths){
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const rg = XLSX.utils.decode_range(ws['!ref']||'A1');
+  for(let r=1; r<=rg.e.r; r++) for(let c=0; c<=rg.e.c; c++){
+    const a = XLSX.utils.encode_cell({r,c}), cell = ws[a];
+    if(cell && typeof cell.v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(cell.v)) ws[a] = {t:'n', v:serial(cell.v), z:'dd-mmm-yyyy'};
+  }
+  if(widths) ws['!cols'] = widths.map(w=>({wch:w}));
+  return ws;
+}
+function exportXLSX(){
+  if(!window.XLSX){ toast('The Excel writer could not load. Check the internet connection.'); return; }
+  const wb = XLSX.utils.book_new(), nm = id => person(id)?.name||'', add = (n,rows,w) => XLSX.utils.book_append_sheet(wb, makeSheet(rows,w), n);
+  add('How to use', [['How to use this file'],
+    ['This file holds the whole roster. Upload it to the GitHub repository as roster-data.xlsx to publish.'],
+    ['You can also edit it in Excel. Keep the sheet names and the column headings as they are.'],
+    ['Classes: one row per class. Type must match a name on the Class types sheet. Batch is Whole class, one batch name, or several joined with a plus, e.g. I+J for two batches sitting together.'],
+    ['Classes: Teacher must match a name on the Faculty sheet exactly. Leave it empty and the page will not fill it in until the clerk runs auto-assign.'],
+    ['Classes: Competencies are codes separated by commas, e.g. FM2.1, FM2.2.'],
+    ['Faculty: Leave is written as 05-10-2026 to 09-10-2026, with several periods separated by a semicolon. Phone numbers and emails are not kept in this file.'],
+    ['Classes: Not held is Yes for a class that did not take place. Leave it empty otherwise.'],
+    ['Courses: Batches and Who can teach are separated by commas. An empty Who can teach means everyone. Each course has its own term dates. Hour targets are written as Practical 25; AETCOM 10.'],
+    ['Ranks: one ratio column per class type. 0 means that rank is never given that type.'],
+    ['Rotations: one row per spell. Batches are separated by commas, and those batches attend together.'],
+    ['Holidays: From and To. Use To for a vacation running over several days.'],
+    ['Leave the ID columns alone. They link swaps to classes. For a new row, leave the ID empty.']], [110]);
+  const names = S.faculty.map(f=>f.name.trim().toLowerCase()), dups = [...new Set(names.filter((n,i)=>names.indexOf(n)!==i))];
+  if(dups.length && !confirm(`Two or more teachers share a name (${dups.join(', ')}). The Excel file can't tell them apart. Download anyway?`)) return;
+  const stampNow = new Date().toISOString();
+  add('Department', [['Field','Value'],['Department name',S.settings.dept],['Institution',S.settings.inst],['Term starts',S.settings.termStart||''],['Term ends',S.settings.termEnd||''],['Office WhatsApp number',S.settings.clerkPhone||''],['Office email',S.settings.clerkEmail||''],['Office PIN (hashed)',S.settings.pinHash||''],['Saved at',stampNow]],[26,50]);
+  add('Class types', [['Type','Shown as'], ...S.types.map(t=>[t.name, t.style==='solid'?'Solid':'Hatched'])],[26,12]);
+  add('Ranks', [['Rank', ...S.types.map(t=>t.name)], ...S.ranks.map(r=>[r.name, ...S.types.map(t=>r.w[t.id]||0)])],[28, ...S.types.map(()=>13)]);
+  add('Faculty', [['Name','Rank','Active','Leave','ID'], ...S.faculty.map(f=>[f.name,rankOf(f)?.name||'',f.active!==false?'Yes':'No',f.leaves.map(l=>l.to&&l.to!==l.from?`${dmy(l.from)} to ${dmy(l.to)}`:dmy(l.from)).join('; '),f.id])],[24,24,8,40,10]);
+  add('Courses', [['Course','Short name','Colour','Batches','Term starts','Term ends','Hour targets','Who can teach','ID'],
+    ...S.courses.map(c=>[c.name,c.short,c.color,c.batches.join(', '),c.termStart||'',c.termEnd||'',
+      Object.entries(c.targets||{}).filter(([,h])=>+h).map(([t,h])=>typeName(t)+' '+h).join('; '),
+      c.allowed.map(nm).filter(Boolean).join(', '),c.id])],[28,12,10,30,14,14,22,50,10]);
+  add('Rotations', [['Course','Rotation','From','To','Batches with us'],
+    ...S.rotations.flatMap(r=>r.entries.slice().sort((a,b)=>a.from.localeCompare(b.from)).map(e=>[course(r.courseId).short, r.name, e.from, e.to||e.from, e.batches.join(', ')]))],[14,30,14,14,20]);
+  add('Batches away', [['Course','Who is away','From','To','Reason'], ...S.blocks.map(b=>[course(b.courseId).short,b.batches.includes('All')?'Whole class':b.batches.join(', '),b.from,b.to||b.from,b.reason])],[14,20,14,14,22]);
+  add('Holidays', [['From','To','Holiday'], ...S.holidays.map(h=>[h.from,h.to||h.from,h.name])],[14,14,30]);
+  add('Classes', [['Date','Day','Start','End','Course','Type','Batch','Topic','Competencies','Venue','Teacher','Locked','ID','Reschedule history (leave as is)','Not held'],
+    ...S.sessions.slice().sort(byTime).map(s=>[s.date,DAYS[dow(s.date)],s.start,s.end,course(s.courseId).short,typeName(s.type),s.batch,s.topic,s.comps.join(', '),s.venue,nm(s.facultyId),s.locked?'Yes':'No',s.id,(s.history||[]).length?JSON.stringify(s.history):'',s.notHeld?'Yes':''])],
+    [13,5,7,7,11,10,12,34,18,20,20,7,10,30,9]);
+  add('Competencies', [['Code','Topic','Competency'], ...S.competencies.map(k=>[k.code,k.topic,k.text])],[10,30,90]);
+  add('Swaps', [['Logged on','Class','From','To','In exchange for','Reason','Status','Decided on','Class ID','Exchange class ID','ID'],
+    ...S.swaps.map(x=>[x.loggedOn,x.classText,nm(x.fromId),nm(x.toId),x.exchangeText,x.reason,x.status,x.decidedOn,x.sessionId,x.exchangeId,x.id])],[13,50,20,20,40,30,11,13,10,10,10]);
+  XLSX.writeFile(wb, 'roster-data.xlsx');
+  S.meta.savedAt = stampNow; S.meta.dirty = false; writeLocal(); render();
+  toast('Downloaded roster-data.xlsx. Now upload it to GitHub.');
+}
+function fromWorkbook(wb){
+  const rows = n => wb.Sheets[n] ? XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''}).slice(1).filter(r=>r.some(v=>String(v).trim()!=='')) : [];
+  if(!wb.Sheets['Classes'] || !wb.Sheets['Faculty']) throw new Error('This Excel file is not a roster file. It needs the Classes and Faculty sheets.');
+  const warn = [], key = v => String(v||'').trim().toLowerCase();
+  const d = {settings:{}, types:[], ranks:[], faculty:[], courses:[], sessions:[], holidays:[], blocks:[], rotations:[], competencies:[], swaps:[], meta:{}};
+  const dep = {}; rows('Department').forEach(r=>dep[key(r[0])]=r[1]);
+  d.settings = {dept:String(dep['department name']||''), inst:String(dep['institution']||''), termStart:xdate(dep['term starts']), termEnd:xdate(dep['term ends']), clerkPhone:String(dep['office whatsapp number']||''), clerkEmail:String(dep['office email']||''), pinHash:String(dep['office pin (hashed)']||dep['clerk pin (hashed)']||'')};
+  d.meta = {savedAt:String(dep['saved at']||''), dirty:false};
+  /* class types first: the rank ratios and the classes refer to them by name */
+  rows('Class types').forEach(r=>{ const n=String(r[0]).trim(); if(!n) return;
+    d.types.push({id:n.toLowerCase().replace(/\W+/g,'-').slice(0,20), name:n, style:/solid/i.test(String(r[1]))?'solid':'hatch'}); });
+  if(!d.types.length) d.types = DEFAULT_TYPES.map(t=>({...t}));
+  const typeBy = n => { const t=String(n||'').trim(); return d.types.find(x=>key(x.name)===key(t) || x.id===key(t)); };
+  const rh = (XLSX.utils.sheet_to_json(wb.Sheets['Ranks']||{},{header:1,defval:''})[0]||[]).map(String);
+  rows('Ranks').forEach(r=>{
+    const w = {};
+    if(rh.length>1 && !/ratio/i.test(rh[1])) rh.slice(1).forEach((h,i)=>{ const t=typeBy(h); if(t) w[t.id]=+r[i+1]||0; });
+    else { w.theory=+r[1]||0; w.practical=+r[2]||0; }
+    d.types.forEach(t=>{ if(w[t.id]==null) w[t.id]=0; });
+    d.ranks.push({id:uid(), name:String(r[0]).trim(), w});
+  });
+  const rankBy = n => { let r = d.ranks.find(x=>key(x.name)===key(n)); if(!r){ const w={}; d.types.forEach(t=>w[t.id]=1); r={id:uid(),name:String(n||'Unranked').trim()||'Unranked',w}; d.ranks.push(r); warn.push(`Rank "${r.name}" was not on the Ranks sheet and was added with ratio 1 everywhere`);} return r.id; };
+  /* columns are found by their headings, so older files (with phone columns) still read */
+  const fh = (XLSX.utils.sheet_to_json(wb.Sheets['Faculty'],{header:1,defval:''})[0]||[]).map(key);
+  const col = (n, dflt) => { const i = fh.findIndex(h=>h.startsWith(n)); return i>=0 ? i : dflt; };
+  const cName=col('name',0), cRank=col('rank',1), cAct=col('active',2), cLeave=col('leave',-1), cId=col('id',-1), cPh=col('whatsapp',-1), cEm=col('email',-1);
+  if(cPh>=0) warn.push('This file still has phone numbers in it. They were read into this browser; the next file you download leaves them out.');
+  rows('Faculty').forEach(r=>{
+    const leaves = String(cLeave>=0?r[cLeave]:'').split(';').map(x=>x.trim()).filter(Boolean).map(x=>{ const [a,b]=x.split(/\s+to\s+/i); const f=xdate(a), t=xdate(b||a); return f?{from:f,to:t||f}:null; }).filter(Boolean);
+    d.faculty.push({id:String(cId>=0?r[cId]:'').trim()||uid(), name:String(r[cName]).trim(), rank:rankBy(r[cRank]), active:r[cAct]===''?true:yes(r[cAct]), phone:String(cPh>=0?r[cPh]:''), email:String(cEm>=0?r[cEm]:''), leaves});
+  });
+  const fn = d.faculty.map(f=>key(f.name)), fd=[...new Set(fn.filter((n,i)=>fn.indexOf(n)!==i))];
+  if(fd.length) warn.push(`Two or more teachers share a name (${fd.join(', ')}). Classes go to the first one. Add an initial to tell them apart.`);
+  const facBy = n => d.faculty.find(f=>key(f.name)===key(n));
+  const ch = (XLSX.utils.sheet_to_json(wb.Sheets['Courses']||{},{header:1,defval:''})[0]||[]).map(key);
+  const ccol = (n,dflt) => { const i=ch.findIndex(h=>h.startsWith(n)); return i>=0?i:dflt; };
+  const kWho=ccol('who',4), kId=ccol('id',5), kTs=ccol('term starts',-1), kTe=ccol('term ends',-1), kTg=ccol('hour target',-1);
+  rows('Courses').forEach(r=>{
+    const allowedIds = String(r[kWho]||'').split(',').map(x=>x.trim()).filter(Boolean).map(n=>{ const f=facBy(n); if(!f) warn.push(`"${n}" under Who can teach is not on the Faculty sheet`); return f?.id; }).filter(Boolean);
+    const targets = {};
+    if(kTg>=0) String(r[kTg]||'').split(';').map(x=>x.trim()).filter(Boolean).forEach(part=>{ const m=part.match(/^(.*?)[\s:]+([\d.]+)$/); if(!m) return; const t=typeBy(m[1]); if(t) targets[t.id]=+m[2]; });
+    d.courses.push({id:String(r[kId]||'').trim()||uid(), name:String(r[0]).trim(), short:String(r[1]||r[0]).trim(), color:/^#[0-9a-f]{6}$/i.test(String(r[2]).trim())?String(r[2]).trim():'#6B5B95',
+      batches:String(r[3]||'').split(',').map(x=>x.trim()).filter(Boolean), allowed:allowedIds,
+      termStart:kTs>=0?xdate(r[kTs]):'', termEnd:kTe>=0?xdate(r[kTe]):'', targets});
+  });
+  const courseBy = n => d.courses.find(c=>key(c.short)===key(n)||key(c.name)===key(n));
+  const batchOf = v => { const t=String(v||'').trim(); return !t || /^whole/i.test(t) || /^all$/i.test(t) ? 'All' : t.replace(/^batch\s+/i,''); };
+  rows('Batches away').forEach(r=>{ const c=courseBy(r[0]); if(!c){ warn.push(`Batches away: course "${r[0]}" not found`); return; }
+    const t=String(r[1]||'').trim(); const from=xdate(r[2]); if(!from) return;
+    d.blocks.push({id:uid(), courseId:c.id, batches:(!t||/^whole/i.test(t))?['All']:t.split(',').map(x=>x.trim()).filter(Boolean), from, to:xdate(r[3])||from, reason:String(r[4]||'Away')}); });
+  const hh = (XLSX.utils.sheet_to_json(wb.Sheets['Holidays']||{},{header:1,defval:''})[0]||[]).map(key);
+  const oldHol = hh[0] && hh[0].startsWith('date');
+  rows('Holidays').forEach(r=>{ const from=xdate(r[0]); if(!from) return;
+    d.holidays.push(oldHol ? {from, to:from, name:String(r[1]||'Holiday')} : {from, to:xdate(r[1])||from, name:String(r[2]||r[1]||'Holiday')}); });
+  rows('Rotations').forEach(r=>{ const c=courseBy(r[0]); const name=String(r[1]||'').trim(); const from=xdate(r[2]);
+    if(!c || !name || !from) return;
+    let rot = d.rotations.find(x=>x.courseId===c.id && key(x.name)===key(name));
+    if(!rot){ rot={id:uid(), courseId:c.id, name, entries:[]}; d.rotations.push(rot); }
+    rot.entries.push({from, to:xdate(r[3])||from, batches:String(r[4]||'').split(',').map(x=>x.trim()).filter(Boolean)}); });
+  let bad=0;
+  rows('Classes').forEach((r,i)=>{
+    const date=xdate(r[0]), start=xtime(r[2]), end=xtime(r[3]), c=courseBy(r[4]);
+    if(!date||!start||!end||!c){ bad++; if(bad<=3) warn.push(`Classes row ${i+2} skipped: check the date, times and course`); return; }
+    const t=String(r[10]||'').trim(), f=t?facBy(t):null;
+    if(t && !f) warn.push(`Classes row ${i+2}: teacher "${t}" is not on the Faculty sheet, left unassigned`);
+    const ty = typeBy(r[5]) || d.types.find(t=>/^p/i.test(String(r[5])) ? t.id==='practical' : t.id==='theory') || d.types[0];
+    d.sessions.push({id:String(r[12]||'').trim()||uid(), date, start, end, courseId:c.id, type:ty.id, batch:batchOf(r[6]),
+      topic:String(r[7]||''), comps:String(r[8]||'').split(',').map(x=>x.trim()).filter(Boolean), venue:String(r[9]||''), facultyId:f?f.id:'', locked:yes(r[11]), notHeld:yes(r[14]||''), history:(()=>{ try{ const h=JSON.parse(r[13]||'[]'); return Array.isArray(h)?h:[]; }catch(e){ return []; } })()});
+  });
+  if(bad>3) warn.push(`${bad} class rows skipped in all`);
+  rows('Competencies').forEach(r=>{ const code=String(r[0]).trim(); if(code) d.competencies.push({code, topic:String(r[1]||'').trim()||'Other', text:String(r[2]||'').trim()}); });
+  rows('Swaps').forEach(r=>{ d.swaps.push({id:String(r[10]||'').trim()||uid(), loggedOn:xdate(r[0])||TODAY, classText:String(r[1]||''), fromId:facBy(r[2])?.id||'', toId:facBy(r[3])?.id||'', exchangeText:String(r[4]||''), reason:String(r[5]||''),
+    status:['Requested','Accepted','Declined'].find(x=>key(x)===key(r[6]))||'Requested', decidedOn:xdate(r[7]), sessionId:String(r[8]||''), exchangeId:String(r[9]||'')}); });
+  return {data:normalize(d), warn};
+}
+function compTemplate(){
+  if(!window.XLSX){ toast('The Excel writer could not load. Check the internet connection.'); return; }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, makeSheet([
+    ['How to fill in this file'],
+    ['1. Open the Competencies sheet (the tab at the bottom). Fill in one competency per row, starting on row 2.'],
+    ['2. Code is required. Write it exactly as in the NMC document, for example FM2.1.'],
+    ['3. Topic is optional. Write the topic name as in the document. The same topic name on many rows groups them together.'],
+    ['4. Competency is required. Copy the full wording from the NMC document.'],
+    ['5. Each code should appear only once. If a code is repeated, the second row is skipped.'],
+    ['6. Save the file, then in the roster page press Upload filled file.'],
+    ['7. Uploading again later is safe. New codes are added and changed wording is updated. Nothing is deleted.'],
+    [''],
+    ['Examples of how rows look (do not copy these into the Competencies sheet):'],
+    ['Code','Topic','Competency'],
+    ['FM1.1','Topic 1 name, as in the document','Full wording of FM1.1, copied from the document'],
+    ['FM1.2','Topic 1 name, as in the document','Full wording of FM1.2, copied from the document'],
+    ['FM14.1','Topic 14 name, as in the document','Full wording of FM14.1, copied from the document']
+  ],[100,40,60]), 'Instructions');
+  XLSX.utils.book_append_sheet(wb, makeSheet([['Code','Topic','Competency']],[12,40,100]), 'Competencies');
+  XLSX.writeFile(wb,'competency-list-sample.xlsx');
+  toast('Downloaded competency-list-sample.xlsx');
+}
+
+/* read an uploaded competency file and build the check screen */
+function readCompFile(wb){
+  const name = wb.SheetNames.find(n=>/^competenc/i.test(n)) || wb.SheetNames.find(n=>!/^instruc/i.test(n)) || wb.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:false,defval:'',blankrows:true});
+  let h = rows.findIndex((r,i)=>i<10 && r.some(v=>/^\s*code\s*$/i.test(String(v))));
+  let ci=0, ti=1, xi=2;
+  if(h>=0){ const hr=rows[h].map(v=>String(v).trim().toLowerCase());
+    ci=hr.findIndex(v=>v==='code'); const t=hr.findIndex(v=>v==='topic'); ti=t; const x=hr.findIndex(v=>/^competenc|^description|^wording/.test(v)); xi=x>=0?x:(ci+2); }
+  const start = h>=0 ? h+1 : 0, seen = {}, good = [], skipped = [];
+  for(let i=start; i<rows.length; i++){
+    const r = rows[i], code = String(r[ci]||'').trim(), topic = ti>=0 ? String(r[ti]||'').trim() : '', text = String(r[xi]||'').trim();
+    if(!code && !text && !topic) continue;
+    const row = i+1 + (XLSX.utils.decode_range(wb.Sheets[name]['!ref']||'A1').s.r);
+    if(!code){ skipped.push(`Row ${row}: code missing`); continue; }
+    if(!text){ skipped.push(`Row ${row}: ${code} has no competency wording`); continue; }
+    if(seen[code.toLowerCase()]){ skipped.push(`Row ${row}: ${code} appears twice (first on row ${seen[code.toLowerCase()]})`); continue; }
+    seen[code.toLowerCase()] = row;
+    good.push({code, topic:topic||'Other', text});
+  }
+  let added=0, updated=0, same=0;
+  good.forEach(k=>{ const e=S.competencies.find(x=>x.code.toLowerCase()===k.code.toLowerCase()); if(!e) added++; else if(e.text!==k.text||e.topic!==k.topic) updated++; else same++; });
+  return {sheet:name, good, skipped, added, updated, same};
+}
+function compImportDlg(r){
+  const el = document.getElementById('dlg'), demo = S.competencies.filter(k=>k.code.startsWith('DEMO')).length;
+  ui.dlg.rmDemo = ui.dlg.rmDemo ?? true;
+  el.innerHTML = `<div class="dlg-h"><h2>Check before loading</h2><button class="btn sm" data-act="dlgclose">Close</button></div>
+  <div class="dlg-b">
+    <p style="margin-top:0">Read from the sheet <b>${esc(r.sheet)}</b>.</p>
+    <div class="imp-sum"><span><b>${r.good.length}</b>found</span><span><b>${r.added}</b>new</span><span><b>${r.updated}</b>wording updated</span><span><b>${r.same}</b>already the same</span><span style="color:${r.skipped.length?'var(--bad)':'inherit'}"><b>${r.skipped.length}</b>rows skipped</span></div>
+    ${r.skipped.length?`<p class="help">Skipped rows are not loaded. Fix them in Excel and upload again if they're needed.</p><ul class="skips">${r.skipped.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
+    ${demo && r.good.length?`<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" data-ch="rmdemo" ${ui.dlg.rmDemo?'checked':''}> Also remove the ${demo} demo entries from the list</label>`:''}
+    ${!r.good.length?`<p class="help">Nothing could be loaded. Check that the Competencies sheet has the headings Code, Topic and Competency in row 1.</p>`:''}
+  </div>
+  <div class="dlg-f"><button class="btn" data-act="dlgclose">Cancel</button>${r.good.length?`<button class="btn primary" data-act="compload">Load these competencies</button>`:''}</div>`;
+}
+
+async function hashPin(p){
+  const txt = 'dept-roster:'+p;
+  if(window.crypto && crypto.subtle){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+  let h = 2166136261; for(const c of txt){ h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return 'f'+(h>>>0).toString(16);
+}
+async function fetchPublished(){
+  try{
+    const r = await fetch('roster-data.xlsx',{cache:'no-store'});
+    if(r.ok && window.XLSX){ const res = fromWorkbook(XLSX.read(await r.arrayBuffer(),{type:'array'})); return res; }
+  }catch(e){}
+  try{ const r = await fetch('roster-data.json',{cache:'no-store'}); if(r.ok) return {data:normalize(await r.json()), warn:[]}; }catch(e){}
+  return null;
+}
+/* ask: confirm first. force: replace even unpublished changes (used by the warning banner) */
+async function loadPublished(ask, force){
+  const res = await fetchPublished();
+  if(!res){ if(ask||force) toast('No roster-data.xlsx found next to this page yet'); return false; }
+  if(ask && !confirm(isDirty(S) ? 'This browser has changes that were never published. Discard them and load the published roster?' : 'Replace what is in this browser with the published roster?')) return false;
+  S = res.data; applyContacts();
+  if(ask||force) toast('Published roster loaded'+(res.warn.length?`. ${res.warn.length} note${res.warn.length===1?'':'s'}: `+res.warn[0]:''));
+  render(); return true;
+}
+
+document.getElementById('importFile').addEventListener('change', e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      if(/\.json$/i.test(file.name)){ const d=JSON.parse(new TextDecoder().decode(rd.result)); if(!d.sessions||!d.faculty) throw new Error('That file is not a roster file'); S=normalize(d); save(); render(); toast('File opened'); }
+      else { if(!window.XLSX) throw new Error('The Excel reader could not load. Check the internet connection.');
+        const res=fromWorkbook(XLSX.read(rd.result,{type:'array'})); S=res.data; applyContacts(); saveContacts(); writeLocal(); render();
+        toast(res.warn.length ? `Opened, with ${res.warn.length} note${res.warn.length===1?'':'s'}. First: ${res.warn[0]}` : 'Excel file opened'); if(res.warn.length) console.warn(res.warn.join('\n')); }
+    }catch(err){ toast(err.message||'That file could not be read'); }
+    e.target.value='';
+  };
+  rd.readAsArrayBuffer(file);
+});
+document.getElementById('importComps').addEventListener('change', e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const r = readCompFile(XLSX.read(rd.result,{type:'array'}));
+      ui.dlg = {kind:'compimport', r}; compImportDlg(r);
+      const el=document.getElementById('dlg'); if(!el.open) el.showModal();
+    }catch(err){ toast(err.message||'That file could not be read'); }
+    finally{ e.target.value=''; }
+  };
+  rd.readAsArrayBuffer(file);
+});
+document.addEventListener('click', e=>{ const el=e.target.closest('[data-act]'); if(!el) return; if(el.tagName==='DETAILS') return; act(el.dataset.act, el); });
+document.addEventListener('change', e=>{ const el=e.target.closest('[data-ch]'); if(el) change(el.dataset.ch, el); });
+document.addEventListener('input', e=>{ if(e.target.id==='cq' && ui.dlg){ ui.dlg.q=e.target.value; document.getElementById('clist').innerHTML=compListHTML(); } });
+document.addEventListener('toggle', e=>{ if(e.target.matches && e.target.matches('details.allow')) ui.openAllow = e.target.open ? e.target.dataset.id : (ui.openAllow===e.target.dataset.id?null:ui.openAllow); }, true);
+document.getElementById('dlg').addEventListener('close', ()=>{ ui.dlg=null; });
+
+/* ============ start ============ */
+function boot(r){
+  ME = r.me || ME;
+  if(r.data && r.data.sessions && r.data.sessions.length){ S = normalize(r.data); }
+  else if(ME.isOffice){ sample(); dirty = true; setTimeout(pushSave, 600); }
+  else { S = normalize({settings:{dept:'Department Teaching Roster', inst:''}}); }
+  ui.edit = !!ME.isOffice;
+  setState('');
+  render();
+}
+window.boot = boot;
+window.remoteUpdate = remoteUpdate;
+window.rosterSample = sample;
+window.rosterNormalize = normalize;
+
+</script>
+<script type="module" src="runtime.js"></script>
+</body>
+</html>
