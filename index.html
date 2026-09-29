@@ -602,6 +602,34 @@ function compCell(s){
   return `<div class="codes">${chips||(ui.edit?'':'<span class="help">None</span>')}${ui.edit?`<button class="btn sm" data-act="pickcomp" data-id="${s.id}">${s.comps.length?'Change':'Choose'}</button>`:''}</div>`;
 }
 
+function timeFixPanel(){
+  const t = ui.tf = ui.tf||{};
+  if(!S.courses.find(c=>c.id===t.course)) t.course = S.courses[0].id;
+  const c = course(t.course);
+  const typesHere = S.types.filter(x=>S.sessions.some(s=>s.courseId===t.course && s.type===x.id));
+  if(!typesHere.find(x=>x.id===t.type)) t.type = (typesHere[0]||S.types[0]||{}).id;
+  if(!t.from) t.from = c.termStart || S.settings.termStart || TODAY;
+  const pool = S.sessions.filter(s=>s.courseId===t.course && s.type===t.type && s.date>=t.from);
+  const slots = [...new Set(pool.map(s=>s.start+'-'+s.end))].sort();
+  if(!slots.includes(t.slot)) t.slot = slots[0]||'';
+  if(!t.start || !t.end){ const [a,b]=(t.slot||'-').split('-'); t.start=t.start||a||'14:00'; t.end=t.end||b||'16:00'; }
+  const n = tfList().length;
+  const lab = x => { const [a,b]=x.split('-'); const k=pool.filter(s=>s.start===a&&s.end===b).length; return `${t12(a)} to ${t12(b)} (${k} class${k===1?'':'es'})`; };
+  return `<div class="panel">
+    <h2>Correct the time of a series</h2>
+    <p class="lead">For classes entered at the wrong time. Every class of this course and type in the chosen slot, from the chosen date on, gets the new time. Date, batch, teacher, topic and venue stay as they are, and the classes are not marked as moved. To correct a single class, change its time in the roster table below.</p>
+    <div class="grid-form">
+      <label>Course<select data-ch="tf" data-f="course">${S.courses.map(x=>`<option value="${x.id}" ${x.id===t.course?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
+      <label>Type<select data-ch="tf" data-f="type">${(typesHere.length?typesHere:S.types).map(x=>`<option value="${x.id}" ${x.id===t.type?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
+      <label>From<input type="date" data-ch="tf" data-f="from" value="${t.from}"></label>
+      <label style="grid-column:span 2">Now at<select data-ch="tf" data-f="slot">${slots.length?slots.map(x=>`<option value="${x}" ${x===t.slot?'selected':''}>${lab(x)}</option>`).join(''):'<option value="">No classes found</option>'}</select></label>
+      <label>New start<input type="time" data-ch="tf" data-f="start" value="${t.start}"></label>
+      <label>New end<input type="time" data-ch="tf" data-f="end" value="${t.end}"></label>
+    </div>
+    <div class="row-actions"><button class="btn primary" data-act="tfapply" ${n?'':'disabled'}>Change the time of ${n} class${n===1?'':'es'}</button></div>
+  </div>`;
+}
+
 function tableHTML(from, to, list){
   if(!list.length) return `<div class="tbl-wrap"><div class="empty"><b>No classes in this week${ui.course!=='all'?' for this course':''}.</b>${ui.edit?'Add them under Plan the week, or copy last week\'s timetable there.':'Try another week or course.'}</div></div>`;
   let rows = '';
@@ -613,7 +641,7 @@ function tableHTML(from, to, list){
     for(const s of day){
       const c = course(s.courseId), aw = away(s);
       rows += `<tr style="--c:${c.color}" class="${aw?'isaway':''} ${s.notHeld?'isnotheld':''}">
-        <td class="time">${t12(s.start)} to ${t12(s.end)}<br><span class="help">${hoursOf(s).toFixed(1).replace('.0','')} h</span>${movedTag(s)}</td>
+        <td class="time">${ui.edit?`<input type="time" value="${s.start}" data-ch="stime" data-f="start" data-id="${s.id}" aria-label="Starts"> to <input type="time" value="${s.end}" data-ch="stime" data-f="end" data-id="${s.id}" aria-label="Ends">`:`${t12(s.start)} to ${t12(s.end)}`}<br><span class="help">${hoursOf(s).toFixed(1).replace('.0','')} h</span>${movedTag(s)}</td>
         <td><span class="cc"><i></i>${esc(c.short)}</span></td>
         <td><span class="kind ${typeOf(s.type).style==='solid'?'theory':'practical'}">${esc(typeName(s.type))}</span></td>
         <td>${esc(batsLabel(s))}${aw?`<span class="away">${esc(aw.reason)}</span>`:''}${holiday(s.date)?`<span class="away">Holiday</span>`:''}${s.notHeld?`<span class="nh">Not held</span>`:''}</td>
@@ -735,6 +763,7 @@ function viewPlan(){
     </div>
     <div class="row-actions"><button class="btn primary" data-act="addclass">Add class</button></div>
   </div>
+  ${timeFixPanel()}
   <div class="panel">
     <h2>Teachers for this week</h2>
     <p class="lead">Auto-assign counts in hours. It works out the hours each person was due, from the ratio for their rank and the class type, and gives each class to whoever is furthest behind. It skips anyone on leave, anyone already teaching at that hour, anyone not on the course's teacher list, and batches that are away. Classes you set by hand are locked and stay as they are.</p>
@@ -1397,6 +1426,12 @@ function act(a, el){
     case 'covcsv': exportCovCSV(); return;
     case 'ics': exportICS(); return;
     case 'fillview': { const [f,t,a1,b1]=range(); const r=autoAssign(visible(a1||f,b1||t),'fill'); save(); toast(report(r)); break; }
+    case 'tfapply': { const t=ui.tf||{}, list=tfList();
+      if(!list.length) return;
+      if(!t.start || !t.end || mins(t.end)<=mins(t.start)){ toast('The end time must be after the start time'); return; }
+      if(!confirm(`Change ${list.length} ${course(t.course).short} ${typeName(t.type).toLowerCase()} class${list.length===1?'':'es'} to ${t12(t.start)} to ${t12(t.end)}?`)) return;
+      list.forEach(s=>{ s.start=t.start; s.end=t.end; });
+      t.slot=''; save(); toast(timeNote(list)); break; }
     case 'fillweek': case 'redoweek': {
       const m=monday(ui.anchor), wk=S.sessions.filter(s=>s.date>=m && s.date<=addDays(m,6));
       if(a==='redoweek' && !confirm('Reassign every unlocked class this week?')) return;
@@ -1606,6 +1641,13 @@ function change(c, el){
     case 'pfmode': snapshotPF(); ui.pf.mode=el.value; render(); return;
     case 'assign': { const s=sess(id); s.facultyId=el.value; s.locked=!!el.value; save(); break; }
     case 'sfield': sess(id)[f] = el.value; save(); return;
+    /* correcting a class's time where it stands: not a move, so nothing goes into its history */
+    case 'stime': { const s=sess(id), v=el.value; if(!s || !v) break;
+      const dur = mins(s.end)-mins(s.start);
+      if(f==='start'){ s.start=v; if(mins(s.end)<=mins(v)){ const e=Math.min(mins(v)+dur, 23*60+59); s.end=pad(Math.floor(e/60))+':'+pad(e%60); } }
+      else { if(mins(v)<=mins(s.start)){ toast('The end time must be after the start time'); break; } s.end=v; }
+      save(); toast(timeNote([s])); break; }
+    case 'tf': ui.tf = ui.tf||{}; ui.tf[f]=el.value; if(f==='course'||f==='type'||f==='from') ui.tf.slot=''; break;
     case 'set': S.settings[f] = el.value; save(); break;
     case 'rank': { const r=S.ranks.find(x=>x.id===id); r[f] = el.value; save(); break; }
     case 'rankw': { const r=S.ranks.find(x=>x.id===id); r.w[f] = Math.max(0, +el.value||0); save(); break; }
@@ -1665,6 +1707,15 @@ function change(c, el){
   render();
 }
 
+function timeNote(list){
+  const n = list.filter(s=>{ const f=person(s.facultyId); return f && S.sessions.some(x=>x.id!==s.id && x.facultyId===f.id && overlaps(x,s)); }).length;
+  return n ? `Time changed. ${n} class${n===1?' now clashes':'es now clash'} with another class of the same teacher; press Check the roster on the Roster tab to see and reassign.` : `Time changed${list.length>1?' on '+list.length+' classes':''}.`;
+}
+function tfList(){
+  const t = ui.tf||{}; if(!t.slot) return [];
+  const [a,b] = t.slot.split('-');
+  return S.sessions.filter(s=>s.courseId===t.course && s.type===t.type && s.start===a && s.end===b && s.date>=(t.from||''));
+}
 function report(r){ return r.missed ? `Filled ${r.filled}. ${r.missed} class${r.missed===1?' has':'es have'} no free teacher; check leave, clashes or the course's teacher list.` : `Filled ${r.filled} class${r.filled===1?'':'es'}.`; }
 const sortComps = () => S.competencies.sort((a,b)=>a.code.localeCompare(b.code, undefined, {numeric:true}));
 
