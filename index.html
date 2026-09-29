@@ -280,7 +280,7 @@ const CKEY = 'dept-roster-contacts-v1';
 let S = null;
 const ui = { tab:'roster', view:'table', course:'all', type:'all', teacher:'all', anchor:TODAY, edit:false,
   pf:{}, pfComps:[], wlRange:'term', covTopic:'all', covQ:'', covPending:false, msgWeek:addDays(monday(TODAY),7),
-  swapFilter:'all', compQ:'', openAllow:null, dlg:null, msgs:[] };
+  swapFilter:'all', compQ:'', openAllow:null, dlg:null, msgs:[], checks:null };
 
 function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 3000); }
 let ME = {email:'', name:'', facultyId:'', isOffice:false, prefs:{weekly:true,daily:true,swaps:true}};
@@ -306,6 +306,7 @@ function reload(){
 /* called when someone else changes the roster */
 function remoteUpdate(data){
   if(dirty) return;
+  ui.checks = null;
   S = normalize(data);
   if(!ui.dlg) render();
 }
@@ -877,6 +878,60 @@ function viewSwaps(){
     </div>
   </div>`:`<p class="help">Your Google account is not on the faculty list yet, so you will not get roster emails. Ask the office to add it.</p>`}`;
 }
+/* every class measured against the rules as they stand today, not as they stood
+   when the class was assigned */
+function rosterChecks(){
+  const out = [], seen = new Set();
+  for(const s of S.sessions){
+    const f = person(s.facultyId), c = course(s.courseId), t = termOf(s.courseId);
+    const hol = holiday(s.date), aw = away(s);
+    if(hol) out.push({sid:s.id, kind:'date', text:`Falls on a holiday (${hol.name})`});
+    if(aw) out.push({sid:s.id, kind:'date', text:`${batsLabel(s)} is away (${aw.reason})`});
+    if((t.from && s.date<t.from) || (t.to && s.date>t.to)) out.push({sid:s.id, kind:'date', text:`Outside the ${c.short} term`});
+    if(s.batch!=='All' && (c.batches||[]).length && bats(s).some(b=>!c.batches.includes(b)))
+      out.push({sid:s.id, kind:'date', text:`Batch ${esc(s.batch)} is no longer on ${c.short}`});
+    if(!f){
+      if(!hol && !aw && !s.notHeld) out.push({sid:s.id, kind:'teacher', text:'No teacher'});
+      continue;
+    }
+    if(f.active===false) out.push({sid:s.id, kind:'teacher', text:`${f.name} is marked inactive`});
+    if(!allowed(f,s.courseId)) out.push({sid:s.id, kind:'teacher', text:`${f.name} is not on the ${c.short} teacher list`});
+    if(weight(f,s.type)===0) out.push({sid:s.id, kind:'teacher', text:`${rankOf(f)?.name||'That rank'} is not given ${typeName(s.type).toLowerCase()} classes`});
+    if(onLeave(f,s.date)) out.push({sid:s.id, kind:'teacher', text:`${f.name} is on leave that day`});
+    const clash = S.sessions.find(x=>x.id!==s.id && x.facultyId===f.id && overlaps(x,s));
+    if(clash){ const k=[s.id,clash.id].sort().join('|'); if(!seen.has(k)){ seen.add(k); out.push({sid:s.id, kind:'teacher', text:`${f.name} also has ${describe(clash)} at that time`}); } }
+  }
+  return out.sort((a,b)=>{ const x=sess(a.sid), y=sess(b.sid); return (x?byTime(x,y):0); });
+}
+function checksPanel(){
+  const list = ui.checks;
+  if(!list) return `<div class="panel" style="margin-top:18px">
+    <h2>Check the roster</h2>
+    <p class="lead">Rules set today do not reach back over classes assigned earlier. This looks at every class against the rules as they stand now: the course teacher lists, the rank ratios, leave, clashes, holidays, weeks when a batch is away, term dates and batch names.</p>
+    <div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="check">Check the roster</button></div>
+  </div>`;
+  const teach = list.filter(x=>x.kind==='teacher'), dates = list.filter(x=>x.kind==='date');
+  const row = x => { const s = sess(x.sid); if(!s) return '';
+    return `<tr><td>${esc(describe(s))}</td><td>${esc(person(s.facultyId)?.name||'No teacher')}</td><td class="${x.kind==='teacher'?'diff over':''}">${esc(x.text)}</td>
+      ${ui.edit?`<td class="no-print"><div class="acts"><button class="btn sm" data-act="reschdlg" data-id="${s.id}">Reschedule</button><button class="btn sm danger" data-act="delsess" data-id="${s.id}">Delete</button></div></td>`:''}</tr>`; };
+  return `<div class="panel" style="margin-top:18px">
+    <h2>Check the roster</h2>
+    ${!list.length ? `<p class="lead" style="color:var(--ok)"><b>Nothing to report.</b> Every class matches the rules as they stand.</p>`
+      : `<div class="stats" style="border:0;padding:0 0 8px">
+        <div class="${teach.length?'bad':''}"><b>${teach.length}</b>with a teacher problem</div>
+        <div class="${dates.length?'bad':''}"><b>${dates.length}</b>with a date problem</div>
+      </div>
+      ${teach.length?`<p class="lead">Teacher problems can be put right in one go: the classes are emptied and auto-assign fills them again under today's rules. Anything you set by hand is emptied too, so check the list first.</p>
+        ${ui.edit?`<div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="fixall">Reassign the ${teach.length} class${teach.length===1?'':'es'}</button><button class="btn" data-act="check">Check again</button></div>`:''}`
+        :`<div class="row-actions" style="margin-top:0"><button class="btn" data-act="check">Check again</button></div>`}
+      ${dates.length?`<p class="help" style="margin-top:12px">Date problems need a decision from you, so reschedule or delete each one.</p>`:''}
+      <div class="tbl-wrap scroll" style="margin-top:10px"><table style="min-width:0">
+        <thead><tr><th>Class</th><th>Teacher</th><th>Problem</th>${ui.edit?'<th class="no-print"></th>':''}</tr></thead>
+        <tbody>${list.slice(0,300).map(row).join('')}</tbody>
+      </table></div>
+      ${list.length>300?`<p class="help">Showing the first 300 of ${list.length}.</p>`:''}`}
+  </div>`;
+}
 function viewLoad(){
   const st = S.settings;
   let from, to, label;
@@ -939,7 +994,8 @@ function viewLoad(){
         <td class="num ${r.planned>r.target?'diff over':''}">${r.planned.toFixed(1)}</td>
         <td class="num">${Math.max(0, r.target-r.planned).toFixed(1)}</td></tr>`).join('')}</tbody>
     </table></div>
-  </div>`:''}`;
+  </div>`:''}
+  ${checksPanel()}`;
 }
 function viewSetup(){
   if(!ui.edit) return `<div class="panel"><h2>Setup</h2><p class="lead">${ME.isOffice?'Turn on Office mode at the top right to change these.':'Only the office can change faculty, courses, holidays and the competency list.'}</p></div>${ME.isOffice?dataPanel():''}`;
@@ -1385,6 +1441,16 @@ function act(a, el){
         .catch(e=>{ setState(''); toast(e.message||'Could not answer the offer'); });
       return; }
     case 'reload': reload(); return;
+    case 'check': ui.checks = rosterChecks(); break;
+    case 'fixall': {
+      const ids = [...new Set((ui.checks||[]).filter(x=>x.kind==='teacher').map(x=>x.sid))];
+      const list = ids.map(sess).filter(Boolean);
+      if(!list.length){ toast('Nothing to reassign'); return; }
+      if(!confirm(`Empty ${list.length} class${list.length===1?'':'es'} and let auto-assign fill them again under today's rules?`)) return;
+      list.forEach(s=>{ s.facultyId=''; s.locked=false; });
+      const r = autoAssign(list,'fill'); save();
+      ui.checks = rosterChecks();
+      toast(report(r)); break; }
     case 'swapdel': if(!confirm('Delete this entry from the log? The roster itself is not changed.')) return; S.swaps=S.swaps.filter(x=>x.id!==id); save(); break;
     /* setup */
     case 'addrank': { const r={id:uid(),name:'New rank',w:{}}; S.types.forEach(t=>r.w[t.id]=1); S.ranks.push(r); save(); break; }
