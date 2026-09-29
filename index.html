@@ -348,6 +348,8 @@ const person = id => S.faculty.find(f=>f.id===id);
 const sess = id => S.sessions.find(s=>s.id===id);
 const rankOf = f => S.ranks.find(r=>r.id===f.rank);
 const weight = (f,type) => { const r = rankOf(f); return r && r.w ? (+r.w[type]||0) : 0; };
+const rankBars = (f,type) => !!f && weight(f,type)===0;
+const rankMsg = (f,type) => `${f.name} is ${rankOf(f)?.name||'of a rank'} and that rank is not given ${typeName(type).toLowerCase()} classes`;
 const typeOf = id => S.types.find(t=>t.id===id) || {id, name:id, style:'hatch'};
 const typeName = id => typeOf(id).name;
 const hoursOf = s => Math.max(0, mins(s.end)-mins(s.start))/60;
@@ -591,7 +593,7 @@ function teacherCell(s){
   const opts = S.faculty.filter(x=>x.active!==false).map(x => {
     const w = weight(x,s.type), leave = onLeave(x,s.date), clash = busy(x.id,s), notList = !allowed(x,s.courseId,s.type);
     const note = leave?' (on leave)':clash?' (has a clash)':notList?' (not on course list)':w===0?` (rank not given ${s.type})`:'';
-    return `<option value="${x.id}" ${x.id===s.facultyId?'selected':''}>${esc(x.name+note)}</option>`;
+    return `<option value="${x.id}" ${x.id===s.facultyId?'selected':''} ${(w===0||notList)&&x.id!==s.facultyId?'disabled':''}>${esc(x.name+note)}</option>`;
   }).join('');
   return `<select data-ch="assign" data-id="${s.id}" aria-label="Teacher"><option value="">Unassigned</option>${opts}</select>
     <button class="lock" data-act="lock" data-id="${s.id}" aria-pressed="${!!s.locked}" title="${s.locked?'Locked: auto-assign will not change this':'Unlocked: auto-assign may change this'}">${s.locked?'🔒':'🔓'}</button>`;
@@ -1344,8 +1346,8 @@ function renderDlg(){
   }
   if(d.kind==='swap'){
     const s = sess(d.sid), from = person(s.facultyId);
-    const cands = S.faculty.filter(f=>f.active!==false && f.id!==s.facultyId);
-    const theirs = d.to ? S.sessions.filter(x=>x.facultyId===d.to && !isOver(x) && x.id!==s.id && !away(x)).sort(byTime) : [];
+    const cands = S.faculty.filter(f=>f.active!==false && f.id!==s.facultyId && !rankBars(f,s.type) && allowed(f,s.courseId,s.type));
+    const theirs = d.to ? S.sessions.filter(x=>x.facultyId===d.to && !isOver(x) && x.id!==s.id && !away(x) && !rankBars(from,x.type) && !(from && !allowed(from,x.courseId,x.type))).sort(byTime) : [];
     const sw = draftSwap();
     el.innerHTML = `<div class="dlg-h"><h2>Swap this class</h2><button class="btn sm" data-act="dlgclose">Close</button></div>
     <div class="dlg-b">
@@ -1369,13 +1371,20 @@ function draftSwap(){
   return {id:uid(), loggedOn:TODAY, sessionId:s.id, classText:describe(s), fromId:s.facultyId, toId:d.to, exchangeId:ex?ex.id:'', exchangeText:ex?describe(ex):'', reason:d.reason, status:'Requested', decidedOn:''};
 }
 /* the same checks the office page makes, run before a teacher accepts */
+function swapRankStop(sw){
+  const s = sess(sw.sessionId), to = person(sw.toId), from = person(sw.fromId), ex = sw.exchangeId ? sess(sw.exchangeId) : null, out = [];
+  if(s && rankBars(to,s.type)) out.push(rankMsg(to,s.type));
+  if(ex && rankBars(from,ex.type)) out.push(rankMsg(from,ex.type));
+  if(s && to && !allowed(to,s.courseId,s.type)) out.push(`${to.name} is not on the teacher list for ${course(s.courseId).short} ${typeName(s.type).toLowerCase()}`);
+  if(ex && from && !allowed(from,ex.courseId,ex.type)) out.push(`${from.name} is not on the teacher list for ${course(ex.courseId).short} ${typeName(ex.type).toLowerCase()}`);
+  return out;
+}
 function swapProblems(sw){
   const s = sess(sw.sessionId), to = person(sw.toId), out = [];
   if(!s) return ['That class is no longer on the roster'];
   if(!to) return ['That teacher is no longer on the faculty list'];
   if(onLeave(to,s.date)) out.push(`${to.name} is on leave that day`);
   if(S.sessions.some(x=>x.id!==s.id && x.id!==sw.exchangeId && x.facultyId===to.id && overlaps(x,s))) out.push(`${to.name} has another class at that time`);
-  if(!allowed(to,s.courseId,s.type)) out.push(`${to.name} is not on the teacher list for ${course(s.courseId).short} ${typeName(s.type).toLowerCase()}`);
   const ex = sw.exchangeId ? sess(sw.exchangeId) : null, from = person(sw.fromId);
   if(ex && from){
     if(onLeave(from,ex.date)) out.push(`${from.name} is on leave on the day of the exchange class`);
@@ -1395,6 +1404,8 @@ function applySwap(sw){
     if(onLeave(from,ex.date)) probs.push(`${from.name} is on leave on the day of the exchange class`);
     if(S.sessions.some(x=>x.id!==ex.id && x.id!==s.id && x.facultyId===from.id && overlaps(x,ex))) probs.push(`${from.name} has another class at the time of the exchange class`);
   }
+  const stop = swapRankStop(sw);
+  if(stop.length){ alert(stop.join('. ')+'. This swap cannot be applied.'); return false; }
   if(probs.length && !confirm(probs.join('. ')+'. Apply the swap anyway?')) return false;
   s.facultyId = sw.toId; s.locked = true;
   if(ex){ ex.facultyId = sw.fromId; ex.locked = true; }
@@ -1487,6 +1498,8 @@ function act(a, el){
     case 'swapaccept': case 'swapdecline2': {
       const sw = S.swaps.find(x=>x.id===id);
       if(a==='swapaccept'){
+        const stop = swapRankStop(sw);
+        if(stop.length){ alert(stop.join('. ')+'. This swap cannot be accepted. Decline it, or ask the office.'); return; }
         const probs = swapProblems(sw);
         if(probs.length && !confirm(probs.join('. ')+'. Take it anyway?')) return;
       }
@@ -1960,9 +1973,11 @@ function fromWorkbook(wb){
   rows('Classes').forEach((r,i)=>{
     const date=xdate(r[0]), start=xtime(r[2]), end=xtime(r[3]), c=courseBy(r[4]);
     if(!date||!start||!end||!c){ bad++; if(bad<=3) warn.push(`Classes row ${i+2} skipped: check the date, times and course`); return; }
-    const t=String(r[10]||'').trim(), f=t?facBy(t):null;
+    const t=String(r[10]||'').trim(); let f=t?facBy(t):null;
     if(t && !f) warn.push(`Classes row ${i+2}: teacher "${t}" is not on the Faculty sheet, left unassigned`);
     const ty = typeBy(r[5]) || d.types.find(t=>/^p/i.test(String(r[5])) ? t.id==='practical' : t.id==='theory') || d.types[0];
+    const rk = f ? d.ranks.find(x=>x.id===f.rank) : null;
+    if(f && !(rk && rk.w && +rk.w[ty.id]>0)){ warn.push(`Classes row ${i+2}: ${f.name}'s rank is not given ${ty.name.toLowerCase()} classes, left unassigned`); f=null; }
     d.sessions.push({id:String(r[12]||'').trim()||uid(), date, start, end, courseId:c.id, type:ty.id, batch:batchOf(r[6]),
       topic:String(r[7]||''), comps:String(r[8]||'').split(',').map(x=>x.trim()).filter(Boolean), venue:String(r[9]||''), facultyId:f?f.id:'', locked:yes(r[11]), notHeld:yes(r[14]||''), history:(()=>{ try{ const h=JSON.parse(r[13]||'[]'); return Array.isArray(h)?h:[]; }catch(e){ return []; } })()});
   });
