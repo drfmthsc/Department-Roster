@@ -924,7 +924,8 @@ function checksPanel(){
       ${teach.length?`<p class="lead">Teacher problems can be put right in one go: the classes are emptied and auto-assign fills them again under today's rules. Anything you set by hand is emptied too, so check the list first.</p>
         ${ui.edit?`<div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="fixall">Reassign the ${teach.length} class${teach.length===1?'':'es'}</button><button class="btn" data-act="check">Check again</button></div>`:''}`
         :`<div class="row-actions" style="margin-top:0"><button class="btn" data-act="check">Check again</button></div>`}
-      ${dates.length?`<p class="help" style="margin-top:12px">Date problems need a decision from you, so reschedule or delete each one.</p>`:''}
+      ${dates.length?`<p class="lead" style="margin-top:12px">Date problems are classes on a holiday, in a week their batch is away, outside the term, or on a batch the course no longer has. Moving them keeps the same weekday and time and looks forward week by week for the first clear date.</p>
+        ${ui.edit?`<div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="reschedall">Move the ${dates.length} class${dates.length===1?'':'es'} to the next clear date</button></div>`:''}`:''}
       <div class="tbl-wrap scroll" style="margin-top:10px"><table style="min-width:0">
         <thead><tr><th>Class</th><th>Teacher</th><th>Problem</th>${ui.edit?'<th class="no-print"></th>':''}</tr></thead>
         <tbody>${list.slice(0,300).map(row).join('')}</tbody>
@@ -1442,6 +1443,43 @@ function act(a, el){
       return; }
     case 'reload': reload(); return;
     case 'check': ui.checks = rosterChecks(); break;
+    case 'reschedall': {
+      const ids = [...new Set((ui.checks||[]).filter(x=>x.kind==='date').map(x=>x.sid))];
+      const list = ids.map(sess).filter(Boolean);
+      if(!list.length){ toast('Nothing to move'); return; }
+      if(!confirm(`Move ${list.length} class${list.length===1?'':'es'} to the next clear date, keeping the same weekday and time?`)) return;
+      let moved=0, stuck=0; const redo=[];
+      for(const g of list){
+        const t = termOf(g.courseId);
+        /* the same weekday first, because that is where the slot belongs;
+           if every one of those is taken by the weekly class, any later day will do */
+        const tries = [];
+        for(let w=1; w<=12; w++) tries.push(addDays(g.date, 7*w));
+        for(let n=1; n<=60; n++) tries.push(addDays(g.date, n));
+        let to = '';
+        for(const d of tries){
+          if(t.to && d > t.to) continue;
+          if(dow(d)===6) continue;
+          if(holiday(d)) continue;
+          if(bats(g).some(b=>awayBlock(g.courseId, b, d))) continue;
+          if(S.sessions.some(x=>x.id!==g.id && x.courseId===g.courseId && x.date===d && x.start===g.start
+              && (x.batch==='All' || g.batch==='All' || bats(x).some(b=>bats(g).includes(b))))) continue;
+          to = d; break;
+        }
+        if(!to){ stuck++; continue; }
+        g.history = g.history || [];
+        g.history.push({fromDate:g.date, fromStart:g.start, fromEnd:g.end, toDate:to, toStart:g.start, toEnd:g.end,
+          reason:'Moved by the roster check', note:'', on:TODAY});
+        g.date = to; g.notHeld = false;
+        const f = person(g.facultyId);
+        const keep = f && !onLeave(f,g.date) && !S.sessions.some(x=>x.id!==g.id && x.facultyId===f.id && overlaps(x,g));
+        if(!keep){ g.facultyId=''; g.locked=false; redo.push(g); }
+        moved++;
+      }
+      const r = redo.length ? autoAssign(redo,'fill') : {filled:0,missed:0};
+      save(); ui.checks = rosterChecks();
+      toast(`Moved ${moved}.${stuck?` ${stuck} had no clear date in the next 12 weeks, so ${stuck===1?'it was':'they were'} left alone.`:''}${redo.length?' '+report(r):''}`);
+      break; }
     case 'fixall': {
       const ids = [...new Set((ui.checks||[]).filter(x=>x.kind==='teacher').map(x=>x.sid))];
       const list = ids.map(sess).filter(Boolean);
