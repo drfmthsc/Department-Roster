@@ -280,7 +280,7 @@ const CKEY = 'dept-roster-contacts-v1';
 let S = null;
 const ui = { tab:'roster', view:'table', course:'all', type:'all', teacher:'all', anchor:TODAY, edit:false,
   pf:{}, pfComps:[], wlRange:'term', covTopic:'all', covQ:'', covPending:false, msgWeek:addDays(monday(TODAY),7),
-  swapFilter:'all', compQ:'', openAllow:null, dlg:null, msgs:[], checks:null };
+  swapFilter:'all', compQ:'', openAllow:null, allowType:{}, dlg:null, msgs:[], checks:null };
 
 function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 3000); }
 let ME = {email:'', name:'', facultyId:'', isOffice:false, prefs:{weekly:true,daily:true,swaps:true}};
@@ -337,7 +337,7 @@ function normalize(d){
   d.ranks.forEach(r=>{ if(!r.w){ r.w = {}; d.types.forEach(t=>r.w[t.id] = +r[t.id]||0); } d.types.forEach(t=>{ if(r.w[t.id]==null) r.w[t.id]=0; }); });
   d.holidays.forEach(h=>{ h.from = h.from || h.date || ''; h.to = h.to || h.from; delete h.date; });
   d.faculty.forEach(f=>{ f.leaves=f.leaves||[]; f.phone=f.phone||''; f.email=f.email||''; });
-  d.courses.forEach(c=>{ c.batches=c.batches||[]; c.allowed=c.allowed||[]; c.targets=c.targets||{}; c.termStart=c.termStart||''; c.termEnd=c.termEnd||''; });
+  d.courses.forEach(c=>{ c.batches=c.batches||[]; c.allowed=c.allowed||[]; c.allowedByType=c.allowedByType||{}; c.targets=c.targets||{}; c.termStart=c.termStart||''; c.termEnd=c.termEnd||''; });
   d.sessions.forEach(s=>{ s.comps=s.comps||[]; s.topic=s.topic||''; s.venue=s.venue||''; s.history=s.history||[]; s.notHeld=!!s.notHeld; });
   d.meta = d.meta || {};
   return d;
@@ -363,7 +363,14 @@ const rotationOn = (rot, date) => rot && rot.entries.find(e => date>=e.from && d
 const onLeave = (f,date) => (f.leaves||[]).some(l => date>=l.from && date<=(l.to||l.from));
 const overlaps = (a,b) => a.date===b.date && mins(a.start)<mins(b.end) && mins(b.start)<mins(a.end);
 const busy = (fid,s) => S.sessions.some(x => x.id!==s.id && x.facultyId===fid && overlaps(x,s));
-const allowed = (f,courseId) => { const c = course(courseId); return !c.allowed || !c.allowed.length || c.allowed.includes(f.id); };
+/* a course may keep a separate list for one class type, say theory; where it does,
+   that list decides for that type and the course's general list is set aside */
+const allowed = (f,courseId,type) => {
+  const c = course(courseId);
+  const byType = type && c.allowedByType ? c.allowedByType[type] : null;
+  if(byType && byType.length) return byType.includes(f.id);
+  return !c.allowed || !c.allowed.length || c.allowed.includes(f.id);
+};
 /* a batch is away when a block covers its course, the date, and either that batch or the whole class */
 const awayBlock = (courseId,batch,date) => S.blocks.find(b => b.courseId===courseId && date>=b.from && date<=(b.to||b.from) && (b.batches.includes('All') || b.batches.includes(batch)));
 const away = s => bats(s).map(b=>awayBlock(s.courseId, b, s.date)).find(Boolean);
@@ -487,7 +494,7 @@ function sample(){
    behind what they were due. It skips: holidays, batches that are away, people on
    leave or already teaching at that hour, and people not on the course's teacher list. */
 function eligibleFor(s){
-  return S.faculty.filter(f => f.active!==false && weight(f,s.type)>0 && allowed(f,s.courseId) && !onLeave(f,s.date));
+  return S.faculty.filter(f => f.active!==false && weight(f,s.type)>0 && allowed(f,s.courseId,s.type) && !onLeave(f,s.date));
 }
 function autoAssign(list, mode){
   const targets = list.filter(s => !s.locked && !holiday(s.date) && !away(s)).sort(byTime);
@@ -582,7 +589,7 @@ function teacherCell(s){
     return aw ? `<span class="help">Batch away</span>` : `<span class="unassigned">Unassigned</span>`;
   }
   const opts = S.faculty.filter(x=>x.active!==false).map(x => {
-    const w = weight(x,s.type), leave = onLeave(x,s.date), clash = busy(x.id,s), notList = !allowed(x,s.courseId);
+    const w = weight(x,s.type), leave = onLeave(x,s.date), clash = busy(x.id,s), notList = !allowed(x,s.courseId,s.type);
     const note = leave?' (on leave)':clash?' (has a clash)':notList?' (not on course list)':w===0?` (rank not given ${s.type})`:'';
     return `<option value="${x.id}" ${x.id===s.facultyId?'selected':''}>${esc(x.name+note)}</option>`;
   }).join('');
@@ -895,7 +902,7 @@ function rosterChecks(){
       continue;
     }
     if(f.active===false) out.push({sid:s.id, kind:'teacher', text:`${f.name} is marked inactive`});
-    if(!allowed(f,s.courseId)) out.push({sid:s.id, kind:'teacher', text:`${f.name} is not on the ${c.short} teacher list`});
+    if(!allowed(f,s.courseId,s.type)) out.push({sid:s.id, kind:'teacher', text:`${f.name} is not on the ${c.short} ${typeName(s.type).toLowerCase()} teacher list`});
     if(weight(f,s.type)===0) out.push({sid:s.id, kind:'teacher', text:`${rankOf(f)?.name||'That rank'} is not given ${typeName(s.type).toLowerCase()} classes`});
     if(onLeave(f,s.date)) out.push({sid:s.id, kind:'teacher', text:`${f.name} is on leave that day`});
     const clash = S.sessions.find(x=>x.id!==s.id && x.facultyId===f.id && overlaps(x,s));
@@ -908,7 +915,9 @@ function checksPanel(){
   if(!list) return `<div class="panel" style="margin-top:18px">
     <h2>Check the roster</h2>
     <p class="lead">Rules set today do not reach back over classes assigned earlier. This looks at every class against the rules as they stand now: the course teacher lists, the rank ratios, leave, clashes, holidays, weeks when a batch is away, term dates and batch names.</p>
-    <div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="check">Check the roster</button></div>
+    <div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="check">Check the roster</button>
+      ${ui.edit?`<button class="btn" data-act="redoall">Redo every assignment</button>`:''}</div>
+    ${ui.edit?`<p class="help">Redo empties every class that is not locked and deals them out again under today's rules. Use it after changing who may teach what, or a rank ratio, so the newly eligible people take their share. Locked classes, and classes settled by a swap, stay as they are.</p>`:''}
   </div>`;
   const teach = list.filter(x=>x.kind==='teacher'), dates = list.filter(x=>x.kind==='date');
   const row = x => { const s = sess(x.sid); if(!s) return '';
@@ -916,14 +925,15 @@ function checksPanel(){
       ${ui.edit?`<td class="no-print"><div class="acts"><button class="btn sm" data-act="reschdlg" data-id="${s.id}">Reschedule</button><button class="btn sm danger" data-act="delsess" data-id="${s.id}">Delete</button></div></td>`:''}</tr>`; };
   return `<div class="panel" style="margin-top:18px">
     <h2>Check the roster</h2>
-    ${!list.length ? `<p class="lead" style="color:var(--ok)"><b>Nothing to report.</b> Every class matches the rules as they stand.</p>`
+    ${!list.length ? `<p class="lead" style="color:var(--ok)"><b>Nothing to report.</b> Every class matches the rules as they stand. Widening a teacher list breaks no rule, so nothing shows here; to give the newly eligible people a share, use Redo every assignment.</p>
+      ${ui.edit?`<div class="row-actions" style="margin-top:0"><button class="btn" data-act="check">Check again</button><button class="btn" data-act="redoall">Redo every assignment</button></div>`:''}`
       : `<div class="stats" style="border:0;padding:0 0 8px">
         <div class="${teach.length?'bad':''}"><b>${teach.length}</b>with a teacher problem</div>
         <div class="${dates.length?'bad':''}"><b>${dates.length}</b>with a date problem</div>
       </div>
       ${teach.length?`<p class="lead">Teacher problems can be put right in one go: the classes are emptied and auto-assign fills them again under today's rules. Anything you set by hand is emptied too, so check the list first.</p>
-        ${ui.edit?`<div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="fixall">Reassign the ${teach.length} class${teach.length===1?'':'es'}</button><button class="btn" data-act="check">Check again</button></div>`:''}`
-        :`<div class="row-actions" style="margin-top:0"><button class="btn" data-act="check">Check again</button></div>`}
+        ${ui.edit?`<div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="fixall">Reassign the ${teach.length} class${teach.length===1?'':'es'}</button><button class="btn" data-act="redoall">Redo every assignment</button><button class="btn" data-act="check">Check again</button></div>`:''}`
+        :`<div class="row-actions" style="margin-top:0"><button class="btn" data-act="check">Check again</button>${ui.edit?`<button class="btn" data-act="redoall">Redo every assignment</button>`:''}</div>`}
       ${dates.length?`<p class="lead" style="margin-top:12px">Date problems are classes on a holiday, in a week their batch is away, outside the term, or on a batch the course no longer has. Moving them keeps the same weekday and time and looks forward week by week for the first clear date.</p>
         ${ui.edit?`<div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="reschedall">Move the ${dates.length} class${dates.length===1?'':'es'} to the next clear date</button></div>`:''}`:''}
       <div class="tbl-wrap scroll" style="margin-top:10px"><table style="min-width:0">
@@ -945,7 +955,7 @@ function viewLoad(){
   const share = {};
   S.faculty.forEach(f => share[f.id] = 0);
   for(const x of list){
-    const elig = S.faculty.filter(f => f.active!==false && weight(f,x.type)>0 && allowed(f,x.courseId) && !onLeave(f,x.date));
+    const elig = S.faculty.filter(f => f.active!==false && weight(f,x.type)>0 && allowed(f,x.courseId,x.type) && !onLeave(f,x.date));
     const sw = elig.reduce((a,f)=>a+weight(f,x.type),0);
     if(sw) elig.forEach(f => share[f.id] += hoursOf(x)*weight(f,x.type)/sw);
   }
@@ -1056,7 +1066,7 @@ function viewSetup(){
   </div>
   <div class="panel">
     <h2>Courses and batches</h2>
-    <p class="lead">List batches separated by commas, for example A, B for 2nd Prof or A to L for 3rd Phase. Leave it empty for a course taught as one class. Under "Who can teach", tick names to limit a course to those teachers; with nobody ticked, everyone can take it. Each course keeps its own term dates, because the calendars differ. Hour targets are written as "Practical 25; AETCOM 10", and the tool warns as they are reached.</p>
+    <p class="lead">List batches separated by commas, for example A, B for 2nd Prof or A to L for 3rd Phase. Leave it empty for a course taught as one class. Under "Who can teach", tick names to limit a course to those teachers; with nobody ticked, everyone can take it. The dropdown inside keeps a separate list for one class type, so MBBS theory can go to the senior staff while tutors still take the practicals and tutorials. A list made for a type decides for that type on its own. Each course keeps its own term dates, because the calendars differ. Hour targets are written as "Practical 25; AETCOM 10", and the tool warns as they are reached.</p>
     <div class="tbl-wrap"><table><thead><tr><th>Colour</th><th>Course name</th><th>Short name</th><th>Batches</th><th>Term starts</th><th>Term ends</th><th>Hour targets</th><th>Who can teach</th><th></th></tr></thead><tbody>
     ${S.courses.map(c=>`<tr>
       <td><input type="color" value="${c.color}" data-ch="course" data-id="${c.id}" data-f="color" aria-label="Colour"></td>
@@ -1066,8 +1076,17 @@ function viewSetup(){
       <td><input type="date" value="${c.termStart||''}" data-ch="course" data-id="${c.id}" data-f="termStart"></td>
       <td><input type="date" value="${c.termEnd||''}" data-ch="course" data-id="${c.id}" data-f="termEnd"></td>
       <td><input type="text" value="${esc(Object.entries(c.targets||{}).filter(([,h])=>+h).map(([t,h])=>typeName(t)+' '+h).join('; '))}" data-ch="course" data-id="${c.id}" data-f="targets" placeholder="e.g. Practical 25" style="min-width:140px"></td>
-      <td><details class="allow" data-act="allowtoggle" data-id="${c.id}" ${ui.openAllow===c.id?'open':''}><summary>${c.allowed.length?c.allowed.length+' teacher'+(c.allowed.length===1?'':'s'):'Everyone'}</summary>
-        <div>${S.faculty.map(f=>`<label><input type="checkbox" data-ch="allow" data-id="${c.id}" data-f="${f.id}" ${c.allowed.includes(f.id)?'checked':''}> ${esc(f.name)}</label>`).join('')}</div></details></td>
+      <td><details class="allow" data-act="allowtoggle" data-id="${c.id}" ${ui.openAllow===c.id?'open':''}>
+        <summary>${c.allowed.length?c.allowed.length+' teacher'+(c.allowed.length===1?'':'s'):'Everyone'}${Object.keys(c.allowedByType||{}).filter(t=>(c.allowedByType[t]||[]).length).map(t=>`, ${esc(typeName(t).toLowerCase())} ${c.allowedByType[t].length}`).join('')}</summary>
+        <div>
+          <label style="flex-direction:column;align-items:flex-start;gap:4px">This list is for
+            <select data-ch="allowtype" data-id="${c.id}">
+              <option value="">every class type</option>
+              ${S.types.map(t=>`<option value="${t.id}" ${(ui.allowType||{})[c.id]===t.id?'selected':''}>${esc(t.name)} only</option>`).join('')}
+            </select></label>
+          ${(() => { const sc=(ui.allowType||{})[c.id]||''; const list = sc ? (c.allowedByType[sc]||[]) : c.allowed;
+            return S.faculty.map(f=>`<label><input type="checkbox" data-ch="allow" data-id="${c.id}" data-f="${f.id}" ${list.includes(f.id)?'checked':''}> ${esc(f.name)}</label>`).join(''); })()}
+        </div></details></td>
       <td><button class="btn sm danger" data-act="delcourse" data-id="${c.id}">Delete</button></td></tr>`).join('')}
     </tbody></table></div>
     <div class="row-actions"><button class="btn" data-act="addcourse">Add course</button></div>
@@ -1303,7 +1322,7 @@ function renderDlg(){
     <div class="dlg-b">
       <p style="margin-top:0"><b>${esc(describe(s))}</b><br><span class="help">Now with ${esc(from?.name||'')}. ${esc(s.topic)}</span></p>
       <div class="grid-form">
-        <label>Hand over to<select data-ch="swto"><option value="">Choose a colleague</option>${cands.map(f=>{ const note = onLeave(f,s.date)?' (on leave)':busy(f.id,s)?' (has a clash)':!allowed(f,s.courseId)?' (not on course list)':''; return `<option value="${f.id}" ${d.to===f.id?'selected':''}>${esc(f.name+note)}</option>`; }).join('')}</select></label>
+        <label>Hand over to<select data-ch="swto"><option value="">Choose a colleague</option>${cands.map(f=>{ const note = onLeave(f,s.date)?' (on leave)':busy(f.id,s)?' (has a clash)':!allowed(f,s.courseId,s.type)?' (not on course list)':''; return `<option value="${f.id}" ${d.to===f.id?'selected':''}>${esc(f.name+note)}</option>`; }).join('')}</select></label>
         <label>In exchange (optional)<select data-ch="swex" ${d.to?'':'disabled'}><option value="">Nothing, just hand over</option>${theirs.map(x=>{ const busyFrom = from && (onLeave(from,x.date) || S.sessions.some(y=>y.id!==x.id && y.id!==s.id && y.facultyId===from.id && overlaps(y,x))); return `<option value="${x.id}" ${d.ex===x.id?'selected':''}>${esc(describe(x))}${busyFrom?esc(` (${from.name} is not free then)`):''}</option>`; }).join('')}</select></label>
         <label style="grid-column:1/-1">Reason<input type="text" id="swreason" value="${esc(d.reason)}" data-ch="swreason" placeholder="e.g. Court summons that day"></label>
       </div>
@@ -1327,7 +1346,7 @@ function swapProblems(sw){
   if(!to) return ['That teacher is no longer on the faculty list'];
   if(onLeave(to,s.date)) out.push(`${to.name} is on leave that day`);
   if(S.sessions.some(x=>x.id!==s.id && x.id!==sw.exchangeId && x.facultyId===to.id && overlaps(x,s))) out.push(`${to.name} has another class at that time`);
-  if(!allowed(to,s.courseId)) out.push(`${to.name} is not on the teacher list for ${course(s.courseId).short}`);
+  if(!allowed(to,s.courseId,s.type)) out.push(`${to.name} is not on the teacher list for ${course(s.courseId).short} ${typeName(s.type).toLowerCase()}`);
   const ex = sw.exchangeId ? sess(sw.exchangeId) : null, from = person(sw.fromId);
   if(ex && from){
     if(onLeave(from,ex.date)) out.push(`${from.name} is on leave on the day of the exchange class`);
@@ -1443,6 +1462,14 @@ function act(a, el){
       return; }
     case 'reload': reload(); return;
     case 'check': ui.checks = rosterChecks(); break;
+    case 'redoall': {
+      const open = S.sessions.filter(x=>!x.locked && !holiday(x.date) && !away(x));
+      const locked = S.sessions.filter(x=>x.locked).length;
+      if(!open.length){ toast('Every class is locked, so there is nothing to redo'); return; }
+      if(!confirm(`Empty ${open.length} class${open.length===1?'':'es'} and deal them out again under today's rules?${locked?` ${locked} locked class${locked===1?'':'es'} stay as they are.`:''}`)) return;
+      const r = autoAssign(S.sessions, 'redo'); save();
+      ui.checks = rosterChecks();
+      toast(`Redone. ${report(r)}`); break; }
     case 'reschedall': {
       const ids = [...new Set((ui.checks||[]).filter(x=>x.kind==='date').map(x=>x.sid))];
       const list = ids.map(sess).filter(Boolean);
@@ -1609,7 +1636,13 @@ function change(c, el){
         } else if(!confirm(`${S.sessions.filter(s=>s.courseId===id && used.includes(s.batch)).length} existing classes use ${used.join(', ')}. They will not appear under the new batch names. Save the change anyway?`)){ render(); return; }
       }
       k.batches=nw; save(); break; }
-    case 'allow': { const k=S.courses.find(x=>x.id===id); k.allowed = el.checked ? [...new Set([...k.allowed,f])] : k.allowed.filter(x=>x!==f); ui.openAllow=id; save(); break; }
+    case 'allow': {
+      const k=S.courses.find(x=>x.id===id), sc=(ui.allowType||{})[id]||'';
+      if(sc){ k.allowedByType = k.allowedByType||{}; const cur = k.allowedByType[sc]||[];
+        k.allowedByType[sc] = el.checked ? [...new Set([...cur,f])] : cur.filter(x=>x!==f); }
+      else k.allowed = el.checked ? [...new Set([...k.allowed,f])] : k.allowed.filter(x=>x!==f);
+      ui.openAllow=id; save(); break; }
+    case 'allowtype': { ui.allowType = ui.allowType||{}; ui.allowType[id] = el.value; ui.openAllow=id; break; }
     case 'bkcourse': ui.bkCourse = el.value; ui.bk = {f:document.getElementById('bk-f').value, t:document.getElementById('bk-t').value, r:document.getElementById('bk-r').value}; break;
     case 'covtopic': ui.covTopic = el.value; break;
     case 'covq': ui.covQ = el.value; break;
@@ -1786,10 +1819,12 @@ function exportXLSX(){
   add('Class types', [['Type','Shown as'], ...S.types.map(t=>[t.name, t.style==='solid'?'Solid':'Hatched'])],[26,12]);
   add('Ranks', [['Rank', ...S.types.map(t=>t.name)], ...S.ranks.map(r=>[r.name, ...S.types.map(t=>r.w[t.id]||0)])],[28, ...S.types.map(()=>13)]);
   add('Faculty', [['Name','Rank','Active','Leave','ID'], ...S.faculty.map(f=>[f.name,rankOf(f)?.name||'',f.active!==false?'Yes':'No',f.leaves.map(l=>l.to&&l.to!==l.from?`${dmy(l.from)} to ${dmy(l.to)}`:dmy(l.from)).join('; '),f.id])],[24,24,8,40,10]);
-  add('Courses', [['Course','Short name','Colour','Batches','Term starts','Term ends','Hour targets','Who can teach','ID'],
+  add('Courses', [['Course','Short name','Colour','Batches','Term starts','Term ends','Hour targets','Who can teach','Who can teach, by class type','ID'],
     ...S.courses.map(c=>[c.name,c.short,c.color,c.batches.join(', '),c.termStart||'',c.termEnd||'',
       Object.entries(c.targets||{}).filter(([,h])=>+h).map(([t,h])=>typeName(t)+' '+h).join('; '),
-      c.allowed.map(nm).filter(Boolean).join(', '),c.id])],[28,12,10,30,14,14,22,50,10]);
+      c.allowed.map(nm).filter(Boolean).join(', '),
+      Object.entries(c.allowedByType||{}).filter(([,v])=>(v||[]).length).map(([t,v])=>typeName(t)+': '+v.map(nm).filter(Boolean).join(', ')).join('; '),
+      c.id])],[28,12,10,30,14,14,22,50,50,10]);
   add('Rotations', [['Course','Rotation','From','To','Batches with us'],
     ...S.rotations.flatMap(r=>r.entries.slice().sort((a,b)=>a.from.localeCompare(b.from)).map(e=>[course(r.courseId).short, r.name, e.from, e.to||e.from, e.batches.join(', ')]))],[14,30,14,14,20]);
   add('Batches away', [['Course','Who is away','From','To','Reason'], ...S.blocks.map(b=>[course(b.courseId).short,b.batches.includes('All')?'Whole class':b.batches.join(', '),b.from,b.to||b.from,b.reason])],[14,20,14,14,22]);
@@ -1840,13 +1875,20 @@ function fromWorkbook(wb){
   const facBy = n => d.faculty.find(f=>key(f.name)===key(n));
   const ch = (XLSX.utils.sheet_to_json(wb.Sheets['Courses']||{},{header:1,defval:''})[0]||[]).map(key);
   const ccol = (n,dflt) => { const i=ch.findIndex(h=>h.startsWith(n)); return i>=0?i:dflt; };
-  const kWho=ccol('who',4), kId=ccol('id',5), kTs=ccol('term starts',-1), kTe=ccol('term ends',-1), kTg=ccol('hour target',-1);
+  const kWho=ccol('who can teach',4), kId=ccol('id',5), kTs=ccol('term starts',-1), kTe=ccol('term ends',-1), kTg=ccol('hour target',-1);
+  const kWhoT=ch.findIndex(h=>h.startsWith('who can teach, by'));
   rows('Courses').forEach(r=>{
     const allowedIds = String(r[kWho]||'').split(',').map(x=>x.trim()).filter(Boolean).map(n=>{ const f=facBy(n); if(!f) warn.push(`"${n}" under Who can teach is not on the Faculty sheet`); return f?.id; }).filter(Boolean);
     const targets = {};
     if(kTg>=0) String(r[kTg]||'').split(';').map(x=>x.trim()).filter(Boolean).forEach(part=>{ const m=part.match(/^(.*?)[\s:]+([\d.]+)$/); if(!m) return; const t=typeBy(m[1]); if(t) targets[t.id]=+m[2]; });
+    const allowedByType = {};
+    if(kWhoT>=0) String(r[kWhoT]||'').split(';').map(x=>x.trim()).filter(Boolean).forEach(part=>{
+      const i = part.indexOf(':'); if(i<0) return;
+      const t = typeBy(part.slice(0,i)); if(!t) return;
+      allowedByType[t.id] = part.slice(i+1).split(',').map(x=>x.trim()).filter(Boolean).map(n=>facBy(n)?.id).filter(Boolean);
+    });
     d.courses.push({id:String(r[kId]||'').trim()||uid(), name:String(r[0]).trim(), short:String(r[1]||r[0]).trim(), color:/^#[0-9a-f]{6}$/i.test(String(r[2]).trim())?String(r[2]).trim():'#6B5B95',
-      batches:String(r[3]||'').split(',').map(x=>x.trim()).filter(Boolean), allowed:allowedIds,
+      batches:String(r[3]||'').split(',').map(x=>x.trim()).filter(Boolean), allowed:allowedIds, allowedByType,
       termStart:kTs>=0?xdate(r[kTs]):'', termEnd:kTe>=0?xdate(r[kTe]):'', targets});
   });
   const courseBy = n => d.courses.find(c=>key(c.short)===key(n)||key(c.name)===key(n));
