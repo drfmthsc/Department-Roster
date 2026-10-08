@@ -172,6 +172,8 @@ dialog::backdrop{background:rgba(10,20,20,.45)}
 .stats .ok b{color:var(--ok)} .stats .bad2 b{color:var(--bad)}
 .clist label.ok{border-left:4px solid var(--ok);background:var(--ok-bg)}
 .clist label.bad{border-left:4px solid var(--bad);background:var(--bad-bg)}
+.clist label.na{border-left:4px solid var(--line);background:var(--sunk);opacity:.75}
+.clist label.na .st{color:var(--muted)}
 .clist .st{margin-left:auto;white-space:nowrap;font-size:.8rem;font-weight:700;padding-left:10px}
 .clist label.ok .st{color:var(--ok)} .clist label.bad .st{color:var(--bad)}
 .nh{display:inline-block;margin-left:6px;font-size:.76rem;font-weight:700;color:var(--bad);background:var(--bad-bg);padding:1px 7px;border-radius:999px}
@@ -194,6 +196,12 @@ input.dup{border-color:var(--bad);background:var(--bad-bg)}
 .skips li{padding:4px 0;border-bottom:1px solid var(--line);color:var(--bad)}
 .skips li:last-child{border-bottom:0}
 .cov td.ctext{min-width:260px}
+.cov td.na{color:var(--muted);background:var(--sunk);white-space:nowrap}
+.cov td.done small,.cov td.pend small{display:block;font-weight:500}
+.need{font-size:.78rem;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;background:var(--sunk);color:var(--muted)}
+.need.theory{background:color-mix(in srgb,#3D5A99 16%,var(--surface));color:var(--ink)}
+.need.practical{background:repeating-linear-gradient(135deg,color-mix(in srgb,#A8662B 24%,var(--surface)) 0 3px,var(--surface) 3px 6px);color:var(--ink)}
+.need.both{background:color-mix(in srgb,#2F7A64 20%,var(--surface));color:var(--ink)}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
 .card h3{margin:0;font-size:1rem}
@@ -248,6 +256,7 @@ setTimeout(function(){
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="importFile" accept=".xlsx,.xls,.json" hidden>
 <input type="file" id="importComps" accept=".xlsx,.xls,.csv" hidden>
+<input type="file" id="importTopics" accept=".xlsx,.xls,.csv" hidden>
 <input type="file" id="importContacts" accept=".xlsx,.xls,.csv" hidden>
 <dialog id="dlg"></dialog>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -280,7 +289,7 @@ const CKEY = 'dept-roster-contacts-v1';
 let S = null;
 const ui = { tab:'roster', view:'table', course:'all', type:'all', teacher:'all', anchor:TODAY, edit:false,
   pf:{}, pfComps:[], wlRange:'term', covTopic:'all', covQ:'', covPending:false, msgWeek:addDays(monday(TODAY),7),
-  swapFilter:'all', compQ:'', openAllow:null, allowType:{}, dlg:null, msgs:[], checks:null };
+  swapFilter:'all', covSide:'all', compQ:'', compTopic:'all', openAllow:null, allowType:{}, dlg:null, msgs:[], checks:null };
 
 function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 3000); }
 let ME = {email:'', name:'', facultyId:'', isOffice:false, prefs:{weekly:true,daily:true,swaps:true}};
@@ -322,17 +331,21 @@ const waLink = (phone,text) => { let d = String(phone||'').replace(/\D/g,''); if
 const mailLink = (email,subject,body) => `mailto:${encodeURIComponent(email||'')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
 const DEFAULT_TYPES = [
-  {id:'theory', name:'Theory', style:'solid'},
-  {id:'practical', name:'Practical', style:'hatch'},
-  {id:'tutorial', name:'Tutorial', style:'hatch'},
-  {id:'seminar', name:'Seminar', style:'hatch'},
-  {id:'aetcom', name:'AETCOM', style:'solid'},
-  {id:'integrated', name:'Integrated teaching', style:'solid'}
+  {id:'theory', name:'Theory', style:'solid', counts:'theory'},
+  {id:'practical', name:'Practical', style:'hatch', counts:'practical'},
+  {id:'tutorial', name:'Tutorial', style:'hatch', counts:'practical'},
+  {id:'seminar', name:'Seminar', style:'hatch', counts:'theory'},
+  {id:'aetcom', name:'AETCOM', style:'solid', counts:'theory'},
+  {id:'integrated', name:'Integrated teaching', style:'solid', counts:'theory'}
 ];
+/* a competency may be taught in a lecture, practised in a practical, or both */
+const MODES = [['theory','Theory only'],['practical','Practical only'],['both','Theory and practical']];
 function normalize(d){
   d.settings = d.settings || {}; d.ranks = d.ranks || []; d.faculty = d.faculty || []; d.courses = d.courses || [];
   d.sessions = d.sessions || []; d.holidays = d.holidays || []; d.blocks = d.blocks || []; d.competencies = d.competencies || []; d.swaps = d.swaps || [];
   d.types = (d.types && d.types.length) ? d.types : DEFAULT_TYPES.map(t=>({...t}));
+  d.types.forEach(t=>{ if(!t.counts) t.counts = t.style==='solid' ? 'theory' : 'practical'; });
+  d.competencies.forEach(k=>{ if(!k.mode) k.mode = 'theory'; if(k.objectives==null) k.objectives = ''; });
   d.rotations = d.rotations || [];
   d.ranks.forEach(r=>{ if(!r.w){ r.w = {}; d.types.forEach(t=>r.w[t.id] = +r[t.id]||0); } d.types.forEach(t=>{ if(r.w[t.id]==null) r.w[t.id]=0; }); });
   d.holidays.forEach(h=>{ h.from = h.from || h.date || ''; h.to = h.to || h.from; delete h.date; });
@@ -348,7 +361,34 @@ const person = id => S.faculty.find(f=>f.id===id);
 const sess = id => S.sessions.find(s=>s.id===id);
 const rankOf = f => S.ranks.find(r=>r.id===f.rank);
 const weight = (f,type) => { const r = rankOf(f); return r && r.w ? (+r.w[type]||0) : 0; };
-const typeOf = id => S.types.find(t=>t.id===id) || {id, name:id, style:'hatch'};
+const typeOf = id => S.types.find(t=>t.id===id) || {id, name:id, style:'hatch', counts:'practical'};
+/* does this class count towards theory coverage or practical coverage */
+const countsAs = s => typeOf(s.type).counts === 'practical' ? 'practical' : 'theory';
+const compOf = code => S.competencies.find(k=>k.code===code);
+const modesOf = code => { const k = compOf(code); return k && k.mode==='both' ? ['theory','practical'] : [k ? k.mode : 'theory']; };
+/* a tag may be a single code or a range such as "FM 3.1-3.12", which stands for
+   every code in the list between the two ends */
+function expandComps(list){
+  const out = [];
+  for(const raw of (list||[])){
+    const t = String(raw).trim();
+    const m = t.match(/^(.*?)(\d+(?:\.\d+)?)\s*(?:-|to|–)\s*(\d+(?:\.\d+)?)$/i);
+    if(!m){ out.push(t); continue; }
+    const prefix = m[1].trim(), lo = m[2], hi = m[3];
+    const num = v => v.split('.').map(Number);
+    const [l1,l2=0] = num(lo), [h1,h2=0] = num(hi);
+    let hit = 0;
+    for(const k of S.competencies){
+      if(prefix && !k.code.startsWith(prefix.split(/\s+/)[0])) continue;
+      const mm = k.code.match(/(\d+)(?:\.(\d+))?$/); if(!mm) continue;
+      const a = +mm[1], bq = +(mm[2]||0);
+      if((a>l1 || (a===l1 && bq>=l2)) && (a<h1 || (a===h1 && bq<=h2))){ out.push(k.code); hit++; }
+    }
+    if(!hit) out.push(t);
+  }
+  return [...new Set(out)];
+}
+const compsOf = s => expandComps(s.comps);
 const typeName = id => typeOf(id).name;
 const hoursOf = s => Math.max(0, mins(s.end)-mins(s.start))/60;
 const hSum = list => list.reduce((a,s)=>a+hoursOf(s), 0);
@@ -400,7 +440,7 @@ function sample(){
   const L12 = ['A','B','C','D','E','F','G','H','I','J','K','L'];
   const courses = [
     {id:'mb2',  name:'MBBS 2nd Prof (Batch 2025)', short:'MBBS II', color:'#2F7A64', batches:['A','B'], allowed:[], termStart:'2026-09-01', termEnd:'2027-08-05', targets:{practical:25}},
-    {id:'mb3',  name:'MBBS 3rd Phase Part I (Batch 2024)', short:'MBBS III', color:'#3D5A99', batches:L12, allowed:[], termStart:'2026-09-24', termEnd:'2027-08-02', targets:{aetcom:10}},
+    {id:'mb3',  name:'MBBS 3rd Phase Part I (Batch 2024)', short:'MBBS III', color:'#3D5A99', batches:L12, allowed:[], termStart:'2026-09-24', termEnd:'2027-08-01', targets:{aetcom:10}},
     {id:'mrit', name:'B.MRIT 1st Semester (Batch 2026)', short:'B.MRIT', color:'#A8662B', batches:[], allowed:[], termStart:'2026-08-10', termEnd:'2027-01-31', targets:{}},
     {id:'rtt',  name:'B.RTT 1st Semester (Batch 2026)', short:'B.RTT', color:'#6B5B95', batches:[], allowed:[], termStart:'2026-08-10', termEnd:'2027-01-31', targets:{}}
   ];
@@ -633,7 +673,7 @@ function tableHTML(from, to, list){
         <td>${compCell(s)}</td>
         <td>${ui.edit?`<input type="text" value="${esc(s.venue)}" data-ch="sfield" data-f="venue" data-id="${s.id}" aria-label="Venue">`:esc(s.venue)}</td>
         <td>${teacherCell(s)}</td>
-        <td class="no-print"><div class="acts">${s.facultyId && !isOver(s)?`<button class="btn sm" data-act="swapdlg" data-id="${s.id}">Swap</button>`:''}${ui.edit?`<button class="btn sm" data-act="reschdlg" data-id="${s.id}">Reschedule</button>`:''}${ui.edit && isOver(s)?`<button class="btn sm" data-act="notheld" data-id="${s.id}">${s.notHeld?'Mark as held':'Mark not held'}</button>`:''}${ui.edit?`<button class="btn sm danger" data-act="delsess" data-id="${s.id}" aria-label="Delete class">Delete</button>`:''}</div></td>
+        <td class="no-print"><div class="acts">${s.facultyId && !isOver(s)?`<button class="btn sm" data-act="swapdlg" data-id="${s.id}">Swap</button>`:''}${ui.edit?`<button class="btn sm" data-act="reschdlg" data-id="${s.id}">Reschedule</button>`:''}${ui.edit && isOver(s)?`<button class="btn sm" data-act="notheld" data-id="${s.id}">${s.notHeld?'Mark as held':'Mark not held'}</button>`:''}${ui.edit?`<button class="btn sm" data-act="shiftdlg" data-id="${s.id}">Topics</button>`:''}${ui.edit?`<button class="btn sm danger" data-act="delsess" data-id="${s.id}" aria-label="Delete class">Delete</button>`:''}</div></td>
       </tr>`;
     }
   }
@@ -761,13 +801,36 @@ function viewPlan(){
 }
 
 /* ---------- competencies coverage ---------- */
-function covStatus(cid, code, b){
-  /* a whole-class lecture only counts for a batch that was not away that day */
-  const ss = S.sessions.filter(s => s.courseId===cid && s.comps.includes(code) && (b==='All' || s.batch==='All' || bats(s).includes(b)) && !awayBlock(s.courseId, b==='All'?bats(s)[0]:b, s.date) && !holiday(s.date)).sort(byTime);
-  const held = ss.filter(isHeld);
+/* every class for this course that carries the code and reaches this batch.
+   A whole-class lecture does not count for a batch that was away that day. */
+function classesFor(cid, code, b){
+  return S.sessions.filter(s => s.courseId===cid && compsOf(s).includes(code)
+    && (b==='All' || s.batch==='All' || bats(s).includes(b))
+    && !awayBlock(s.courseId, b==='All'?bats(s)[0]:b, s.date) && !holiday(s.date)).sort(byTime);
+}
+function statusOf(list){
+  const held = list.filter(isHeld);
   if(held.length) return {k:'done', d:held[0].date, n:held.length};
-  const next = ss.find(s=>!isOver(s));
+  const next = list.find(s=>!isOver(s));
   return next ? {k:'plan', d:next.date} : {k:'pend'};
+}
+/* which: 'all' weighs everything the competency needs, or just one side of it.
+   A competency that does not need that side comes back as not applicable. */
+function covStatus(cid, code, b, which){
+  const need = modesOf(code);
+  const want = (!which || which==='all') ? need : (need.includes(which) ? [which] : []);
+  if(!want.length) return {k:'na'};
+  const ss = classesFor(cid, code, b);
+  const parts = want.map(m => statusOf(ss.filter(s=>countsAs(s)===m)));
+  if(parts.every(p=>p.k==='done')) return {k:'done', d:parts.map(p=>p.d).sort().pop(), parts, want};
+  const plan = parts.find(p=>p.k==='plan');
+  return {k: plan ? 'plan' : 'pend', d: plan?plan.d:'', parts, want};
+}
+/* a short note on what is still missing, for a competency needing both sides */
+function covNote(st){
+  if(!st.parts || st.parts.length<2) return '';
+  const left = st.want.filter((m,i)=>st.parts[i].k!=='done');
+  return left.length && left.length<st.want.length ? left.join(' and ')+' left' : '';
 }
 const covCourse = () => ui.course!=='all' && S.courses.some(c=>c.id===ui.course) ? ui.course : S.courses[0]?.id;
 function viewComps(){
@@ -776,14 +839,22 @@ function viewComps(){
   const c = course(cid), batches = c.batches.length ? c.batches : ['All'];
   const topics = [...new Set(S.competencies.map(k=>k.topic))];
   const q = ui.covQ.toLowerCase();
-  let list = S.competencies.filter(k => (ui.covTopic==='all' || k.topic===ui.covTopic) && (!q || (k.code+' '+k.text).toLowerCase().includes(q)));
-  const grid = list.map(k => ({k, st: batches.map(b=>covStatus(cid,k.code,b))}));
-  const shown = ui.covPending ? grid.filter(r=>r.st.some(x=>x.k!=='done')) : grid;
+  const side = ui.covSide || 'all';
+  let list = S.competencies.filter(k => (ui.covTopic==='all' || k.topic===ui.covTopic) && (!q || (k.code+' '+k.text+' '+(k.objectives||'')).toLowerCase().includes(q)));
+  if(side!=='all') list = list.filter(k=>modesOf(k.code).includes(side));
+  const grid = list.map(k => ({k, st: batches.map(b=>covStatus(cid,k.code,b,side))}));
+  const shown = ui.covPending ? grid.filter(r=>r.st.some(x=>x.k==='plan'||x.k==='pend')) : grid;
+  const sideWord = side==='theory' ? 'taught in a lecture' : side==='practical' ? 'practised in a practical' : 'covered';
   const demo = !S.competencies.length || S.competencies.some(k=>k.code.startsWith('DEMO'));
   return `
   ${coursePills(true, cid)}
   ${demo?`<div class="notice">${S.competencies.length?'The competency list here is a <b>demo list</b>.':'The competency list is <b>empty</b>.'} Download the sample file, fill in the NMC competencies and upload it.${ui.edit?`<div class="row-actions"><button class="btn" data-act="comptemplate">Download sample file</button><button class="btn primary" data-act="compimport">Upload filled file</button></div>`:' Turn on Office mode to upload it.'}</div>`:''}
   <div class="bar">
+    <select data-ch="covside" aria-label="Coverage of">
+      <option value="all">Everything each competency needs</option>
+      <option value="theory" ${side==='theory'?'selected':''}>Theory only</option>
+      <option value="practical" ${side==='practical'?'selected':''}>Practical only</option>
+    </select>
     <select data-ch="covtopic" aria-label="Topic"><option value="all">All topics</option>${topics.map(t=>`<option ${t===ui.covTopic?'selected':''}>${esc(t)}</option>`).join('')}</select>
     <input type="text" placeholder="Search code or words" value="${esc(ui.covQ)}" data-ch="covq" aria-label="Search competencies">
     <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-ch="covpend" ${ui.covPending?'checked':''}> Only show what is still pending</label>
@@ -792,15 +863,22 @@ function viewComps(){
     <button class="btn" data-act="print">Print</button>
   </div>
   <div class="stats">
-    ${batches.map((b,i)=>{ const done = grid.filter(r=>r.st[i].k==='done').length; return `<div>${esc(batchLabel(b))}: <span class="ok"><b>${done}</b>done</span>, <span class="bad2"><b>${grid.length-done}</b>pending</span></div>`; }).join('')}
+    ${batches.map((b,i)=>{ const rel = grid.filter(r=>r.st[i].k!=='na'); const done = rel.filter(r=>r.st[i].k==='done').length;
+      return `<div>${esc(batchLabel(b))}: <span class="ok"><b>${done}</b>done</span>, <span class="bad2"><b>${rel.length-done}</b>pending</span></div>`; }).join('')}
   </div>
-  <p class="help">A competency counts as covered once a class tagged with it has been held for that batch. A whole-class theory lecture counts for every batch. Green means taught. Red means pending; it stays red until the class is actually held, even if it's already on the roster. A class marked "not held" doesn't count, and a whole-class lecture doesn't count for a batch that was away that day.</p>
+  <p class="help">Each competency says what it needs: a lecture, a practical, or both. It turns green for a batch once everything it needs has been held for that batch. A whole-class lecture counts for every batch, except one that was away that day, and a class marked "not held" does not count. Red means pending, and stays red until the class is actually held, even when it is already on the roster. Which class types count as theory and which as practical is set under Setup, in Class types.</p>
   <h2 class="print-title">${esc(c.name)}: competency coverage</h2>
   <div class="tbl-wrap"><table class="cov">
-    <thead><tr><th>Code</th><th>Competency</th>${batches.map(b=>`<th>${esc(batchLabel(b))}</th>`).join('')}</tr></thead>
-    <tbody>${shown.length? shown.map(r=>`<tr><td><b>${esc(r.k.code)}</b></td><td class="ctext">${esc(r.k.text)}</td>${r.st.map(x=>
-      x.k==='done'?`<td class="done">Done ${nice(x.d,{day:'numeric',month:'short'})}</td>`:x.k==='plan'?`<td class="plan">Pending<small>on roster for ${nice(x.d,{day:'numeric',month:'short'})}</small></td>`:`<td class="pend">Pending</td>`).join('')}</tr>`).join('')
-      : `<tr><td colspan="${2+batches.length}"><div class="empty"><b>Nothing to show.</b>Change the topic or search, or load the competency list under Setup.</div></td></tr>`}</tbody>
+    <thead><tr><th>Code</th><th>Competency</th><th>Needs</th>${batches.map(b=>`<th>${esc(batchLabel(b))}</th>`).join('')}</tr></thead>
+    <tbody>${shown.length? shown.map(r=>`<tr><td><b>${esc(r.k.code)}</b></td>
+      <td class="ctext">${esc(r.k.text)}${r.k.objectives?`<br><span class="help">Objectives ${esc(r.k.objectives)}</span>`:''}</td>
+      <td><span class="need ${r.k.mode}">${r.k.mode==='both'?'Theory + practical':r.k.mode==='practical'?'Practical':'Theory'}</span></td>
+      ${r.st.map(x=>
+      x.k==='na'?`<td class="na">Not needed</td>`:
+      x.k==='done'?`<td class="done">Done ${nice(x.d,{day:'numeric',month:'short'})}</td>`:
+      x.k==='plan'?`<td class="plan">Pending<small>${esc(covNote(x)||'on roster for '+nice(x.d,{day:'numeric',month:'short'}))}</small></td>`:
+      `<td class="pend">Pending${covNote(x)?`<small>${esc(covNote(x))}</small>`:''}</td>`).join('')}</tr>`).join('')
+      : `<tr><td colspan="${3+batches.length}"><div class="empty"><b>Nothing to show.</b>Change the topic, the search or the coverage filter, or load the competency list under Setup.</div></td></tr>`}</tbody>
   </table></div>`;
 }
 
@@ -920,20 +998,30 @@ function rosterChecks(){
     const clash = S.sessions.find(x=>x.id!==s.id && x.facultyId===f.id && overlaps(x,s));
     if(clash){ const k=[s.id,clash.id].sort().join('|'); if(!seen.has(k)){ seen.add(k); out.push({sid:s.id, kind:'teacher', text:`${f.name} also has ${describe(clash)} at that time`}); } }
   }
+  /* tags that point at nothing, and tags on the wrong side of a competency */
+  for(const s of S.sessions){
+    const side = countsAs(s);
+    for(const code of (s.comps||[])){
+      const ex = expandComps([code]);
+      if(ex.every(c2=>!compOf(c2))){ out.push({sid:s.id, kind:'tag', text:`${code} is not on the competency list`}); continue; }
+      const useful = ex.filter(c2=>compOf(c2)).some(c2=>modesOf(c2).includes(side));
+      if(!useful) out.push({sid:s.id, kind:'tag', text:`${code} does not need ${side}, so this class adds nothing to its coverage`});
+    }
+  }
   return out.sort((a,b)=>{ const x=sess(a.sid), y=sess(b.sid); return (x?byTime(x,y):0); });
 }
 function checksPanel(){
   const list = ui.checks;
   if(!list) return `<div class="panel" style="margin-top:18px">
     <h2>Check the roster</h2>
-    <p class="lead">Rules set today do not reach back over classes assigned earlier. This looks at every class against the rules as they stand now: the course teacher lists, the rank ratios, leave, clashes, holidays, weeks when a batch is away, term dates and batch names.</p>
+    <p class="lead">Rules set today do not reach back over classes assigned earlier. This looks at every class against the rules as they stand now: the course teacher lists, the rank ratios, leave, clashes, holidays, weeks when a batch is away, term dates, batch names and competency tags.</p>
     <div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="check">Check the roster</button>
       ${ui.edit?`<button class="btn" data-act="redoall">Redo every assignment</button>`:''}</div>
     ${ui.edit?`<p class="help">Redo empties every class that is not locked and deals them out again under today's rules. Use it after changing who may teach what, or a rank ratio, so the newly eligible people take their share. Locked classes, and classes settled by a swap, stay as they are.</p>`:''}
   </div>`;
-  const teach = list.filter(x=>x.kind==='teacher'), dates = list.filter(x=>x.kind==='date');
+  const teach = list.filter(x=>x.kind==='teacher'), dates = list.filter(x=>x.kind==='date'), tags = list.filter(x=>x.kind==='tag');
   const row = x => { const s = sess(x.sid); if(!s) return '';
-    return `<tr><td>${esc(describe(s))}</td><td>${esc(person(s.facultyId)?.name||'No teacher')}</td><td class="${x.kind==='teacher'?'diff over':''}">${esc(x.text)}</td>
+    return `<tr><td>${esc(describe(s))}</td><td>${esc(person(s.facultyId)?.name||'No teacher')}</td><td class="${x.kind!=='date'?'diff over':''}">${esc(x.text)}</td>
       ${ui.edit?`<td class="no-print"><div class="acts"><button class="btn sm" data-act="reschdlg" data-id="${s.id}">Reschedule</button><button class="btn sm danger" data-act="delsess" data-id="${s.id}">Delete</button></div></td>`:''}</tr>`; };
   return `<div class="panel" style="margin-top:18px">
     <h2>Check the roster</h2>
@@ -942,10 +1030,12 @@ function checksPanel(){
       : `<div class="stats" style="border:0;padding:0 0 8px">
         <div class="${teach.length?'bad':''}"><b>${teach.length}</b>with a teacher problem</div>
         <div class="${dates.length?'bad':''}"><b>${dates.length}</b>with a date problem</div>
+        <div class="${tags.length?'bad':''}"><b>${tags.length}</b>with a competency tag problem</div>
       </div>
       ${teach.length?`<p class="lead">Teacher problems can be put right in one go: the classes are emptied and auto-assign fills them again under today's rules. Anything you set by hand is emptied too, so check the list first.</p>
         ${ui.edit?`<div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="fixall">Reassign the ${teach.length} class${teach.length===1?'':'es'}</button><button class="btn" data-act="redoall">Redo every assignment</button><button class="btn" data-act="check">Check again</button></div>`:''}`
         :`<div class="row-actions" style="margin-top:0"><button class="btn" data-act="check">Check again</button>${ui.edit?`<button class="btn" data-act="redoall">Redo every assignment</button>`:''}</div>`}
+      ${tags.length?`<p class="help" style="margin-top:12px">A competency tag problem means the code is not on the competency list, or the competency does not need the side this class counts towards. Either way the class adds nothing to the coverage table. Put it right on the class, or under Setup in the competency list.</p>`:''}
       ${dates.length?`<p class="lead" style="margin-top:12px">Date problems are classes on a holiday, in a week their batch is away, outside the term, or on a batch the course no longer has. Moving them keeps the same weekday and time and looks forward week by week for the first clear date.</p>
         ${ui.edit?`<div class="row-actions" style="margin-top:0"><button class="btn primary" data-act="reschedall">Move the ${dates.length} class${dates.length===1?'':'es'} to the next clear date</button></div>`:''}`:''}
       <div class="tbl-wrap scroll" style="margin-top:10px"><table style="min-width:0">
@@ -1025,6 +1115,7 @@ function viewSetup(){
   const s = S.settings;
   const q = ui.compQ.toLowerCase();
   const comps = S.competencies.filter(k=>!q || (k.code+' '+k.topic+' '+k.text).toLowerCase().includes(q));
+  const ctopics = [...new Set(S.competencies.map(k=>k.topic))];
   return `
   <div class="panel">
     <h2>Department</h2>
@@ -1040,10 +1131,11 @@ function viewSetup(){
   </div>
   <div class="panel">
     <h2>Class types</h2>
-    <p class="lead">Every class has a type. Solid types are drawn as a filled block on the roster, hatched ones with diagonal lines, so theory and hands-on work look different at a glance. Each type gets its own ratio column below.</p>
-    <div class="tbl-wrap"><table style="min-width:420px"><thead><tr><th>Type</th><th>Shown as</th><th></th></tr></thead><tbody>
+    <p class="lead">Every class has a type. Solid types are drawn as a filled block on the roster, hatched ones with diagonal lines, so theory and hands-on work look different at a glance. "Counts as" decides which side of a competency the class satisfies: a lecture gives theory coverage, a practical gives practical coverage. Each type gets its own ratio column below.</p>
+    <div class="tbl-wrap"><table style="min-width:560px"><thead><tr><th>Type</th><th>Shown as</th><th>Counts as</th><th></th></tr></thead><tbody>
     ${S.types.map(t=>`<tr><td><input type="text" value="${esc(t.name)}" data-ch="ctype" data-id="${t.id}" data-f="name"></td>
       <td><select data-ch="ctype" data-id="${t.id}" data-f="style"><option value="solid" ${t.style==='solid'?'selected':''}>Solid block</option><option value="hatch" ${t.style!=='solid'?'selected':''}>Hatched block</option></select></td>
+      <td><select data-ch="ctype" data-id="${t.id}" data-f="counts"><option value="theory" ${t.counts!=='practical'?'selected':''}>Theory coverage</option><option value="practical" ${t.counts==='practical'?'selected':''}>Practical coverage</option></select></td>
       <td><button class="btn sm danger" data-act="deltype" data-id="${t.id}">Delete</button></td></tr>`).join('')}
     </tbody></table></div>
     <div class="grid-form" style="margin-top:12px;max-width:420px"><label>New type<input type="text" id="ty-n" placeholder="e.g. Small group learning"></label><button class="btn" data-act="addtype">Add type</button></div>
@@ -1150,7 +1242,7 @@ function viewSetup(){
   </div>
   <div class="panel">
     <h2>Competency list</h2>
-    <p class="lead">The clerk picks from this list when tagging a class. To load the NMC list, download the sample file, fill in the Competencies sheet and upload it. Uploading adds new codes and updates the wording of existing ones. It never deletes anything.</p>
+    <p class="lead">The clerk picks from this list when tagging a class. Each competency says what it needs: a lecture, a practical, or both. To load the NMC list, download the sample file, fill in the Competencies sheet and upload it. Uploading adds new codes and updates the wording of existing ones. It never deletes anything.</p>
     <div class="bar">
       <input type="text" placeholder="Search" value="${esc(ui.compQ)}" data-ch="compq" aria-label="Search list">
       <span class="help">${S.competencies.length} in the list</span><span class="grow"></span>
@@ -1158,15 +1250,35 @@ function viewSetup(){
       <button class="btn primary" data-act="compimport">Upload filled file</button>
       ${S.competencies.length?`<button class="btn danger" data-act="compclear">Delete the whole list</button>`:''}
     </div>
-    <div class="tbl-wrap scroll"><table style="min-width:600px"><thead><tr><th>Code</th><th>Topic</th><th>Competency</th><th></th></tr></thead><tbody>
-      ${comps.map(k=>`<tr><td><b>${esc(k.code)}</b></td><td>${esc(k.topic)}</td><td>${esc(k.text)}</td><td><button class="btn sm danger" data-act="delcompk" data-c="${esc(k.code)}">Delete</button></td></tr>`).join('') || `<tr><td colspan="4" class="help">Nothing in the list yet.</td></tr>`}
+    <div class="tbl-wrap scroll"><table style="min-width:760px"><thead><tr><th>Code</th><th>Topic</th><th>Competency</th><th>Objectives</th><th>Needs</th><th></th></tr></thead><tbody>
+      ${comps.map(k=>`<tr><td><b>${esc(k.code)}</b></td><td>${esc(k.topic)}</td><td>${esc(k.text)}</td>
+        <td><input type="text" value="${esc(k.objectives||'')}" data-ch="compk" data-c="${esc(k.code)}" data-f="objectives" style="width:120px" aria-label="Objectives"></td>
+        <td><select data-ch="compk" data-c="${esc(k.code)}" data-f="mode">${MODES.map(([v,l])=>`<option value="${v}" ${k.mode===v?'selected':''}>${l}</option>`).join('')}</select></td>
+        <td><button class="btn sm danger" data-act="delcompk" data-c="${esc(k.code)}">Delete</button></td></tr>`).join('') || `<tr><td colspan="6" class="help">Nothing in the list yet.</td></tr>`}
     </tbody></table></div>
     <div class="grid-form" style="margin-top:12px">
-      <label>Code<input type="text" id="ck-code" placeholder="FM2.1"></label>
+      <label>Code<input type="text" id="ck-code" placeholder="FM 3.1"></label>
       <label>Topic<input type="text" id="ck-topic"></label>
       <label style="grid-column:span 2">Competency<input type="text" id="ck-text"></label>
+      <label>Objectives<input type="text" id="ck-obj" placeholder="3.1.1 to 3.1.8"></label>
+      <label>Needs<select id="ck-mode">${MODES.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></label>
       <button class="btn" data-act="addcompk">Add to list</button>
     </div>
+    ${ctopics.length>1?`<div class="grid-form" style="margin-top:14px;max-width:700px">
+      <label>Set every competency in<select id="bm-topic">${ctopics.map(t=>`<option>${esc(t)}</option>`).join('')}</select></label>
+      <label>to<select id="bm-mode">${MODES.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></label>
+      <button class="btn" data-act="bulkmode">Apply to the whole topic</button>
+    </div>`:''}
+  </div>
+  <div class="panel">
+    <h2>Lecture topics and tags</h2>
+    <p class="lead">A course syllabus is usually written out once, as a list of lecture titles with their competency codes. Rather than typing each one onto its class, fill in a sheet and load it here. Only the topic and the competency tags are touched; teachers, times and everything else are left exactly as they are.</p>
+    <div class="row-actions" style="margin-top:0">
+      <select id="tp-course">${S.courses.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
+      <button class="btn" data-act="topicsout">Download the classes to fill in</button>
+      <button class="btn primary" data-act="topicsimport">Load a filled sheet</button>
+    </div>
+    <p class="help" style="margin-top:10px">The sheet carries one row per class: Date, Start, Course, Type, Batch, Topic and Competencies. Fill in the last two and load it back. Rows are matched on date, start time and course, so leave those three alone. Competencies are codes separated by commas, and a run may be written as a range, for example FM 3.1-3.12.</p>
   </div>
   ${dataPanel()}`;
 }
@@ -1186,6 +1298,44 @@ function dataPanel(){
       <li>"Load a roster from Excel" takes the roster-data.xlsx file from the earlier version of this tool. Use it once, when setting up.</li>
     </ol>
   </div>`;
+}
+
+/* ============ moving the syllabus along ============
+   A course teaches one stream of lectures per class type, in order. When a class
+   is lost to a holiday the lecture is not lost with it: its topic and its tags
+   move to the next usable slot, and everything after shuffles down. */
+function streamOf(s){
+  return S.sessions.filter(x => x.courseId===s.courseId && x.type===s.type && x.batch===s.batch).sort(byTime);
+}
+/* the slots that can actually hold a lecture, from this one onwards */
+function slotsFrom(s, includeSelf){
+  const all = streamOf(s), i = all.indexOf(s);
+  if(i<0) return [];
+  return all.slice(i).filter((x,j) => (j===0 ? !!includeSelf : (!holiday(x.date) && !away(x) && !x.notHeld)));
+}
+function planShift(s, dir){
+  const slots = slotsFrom(s, true);
+  if(slots.length<2) return {slots, moves:[], lost:null, note:'There is no later class in this course to shift into.'};
+  const moves = [];
+  if(dir==='forward'){
+    for(let i=slots.length-1;i>0;i--) moves.push({from:slots[i-1], to:slots[i]});
+    const last = slots[slots.length-1];
+    return {slots, moves, lost: (last.topic || last.comps.length) ? last : null};
+  }
+  for(let i=0;i<slots.length-1;i++) moves.push({from:slots[i+1], to:slots[i]});
+  return {slots, moves, lost:null};
+}
+function applyShift(s, dir){
+  const plan = planShift(s, dir);
+  if(!plan.moves.length) return plan;
+  const snap = plan.slots.map(x=>({id:x.id, topic:x.topic, comps:[...x.comps]}));
+  const by = Object.fromEntries(snap.map(x=>[x.id,x]));
+  plan.moves.forEach(m=>{ const src = by[m.from.id]; m.to.topic = src.topic; m.to.comps = [...src.comps]; });
+  const first = plan.slots[0], last = plan.slots[plan.slots.length-1];
+  if(dir==='forward'){ first.topic=''; first.comps=[]; }
+  else { last.topic=''; last.comps=[]; }
+  save();
+  return plan;
 }
 
 /* ============ rescheduling ============ */
@@ -1253,12 +1403,19 @@ function applyResched(){
 function openDlg(d){ ui.dlg = d; renderDlg(); const el = document.getElementById('dlg'); if(!el.open) el.showModal(); }
 function closeDlg(){ ui.dlg = null; const el = document.getElementById('dlg'); if(el.open) el.close(); }
 /* first held class that taught this code to this batch (ignoring the class being edited) */
-function taughtOn(cid, code, b, skipId){
-  const s = S.sessions.filter(s => s.id!==skipId && s.courseId===cid && s.comps.includes(code) && (b==='All' || s.batch==='All' || bats(s).includes(b)) && isHeld(s) && !awayBlock(s.courseId, b==='All'?bats(s)[0]:b, s.date) && !holiday(s.date)).sort(byTime)[0];
+function taughtOn(cid, code, b, skipId, side){
+  const s = S.sessions.filter(s => s.id!==skipId && s.courseId===cid && compsOf(s).includes(code)
+    && (!side || countsAs(s)===side)
+    && (b==='All' || s.batch==='All' || bats(s).includes(b)) && isHeld(s)
+    && !awayBlock(s.courseId, b==='All'?bats(s)[0]:b, s.date) && !holiday(s.date)).sort(byTime)[0];
   return s ? s.date : '';
 }
+/* green or red here is about this class's own side: tagging a lecture asks
+   whether the lecture has been given, not whether the practical has been done */
 function pickStatus(k){
-  const d = ui.dlg, dates = d.bat.map(b=>taughtOn(d.cid, k.code, b, d.skip));
+  const d = ui.dlg, side = d.side;
+  if(side && !modesOf(k.code).includes(side)) return {ok:false, na:true, t:'Not needed as '+side};
+  const dates = d.bat.map(b=>taughtOn(d.cid, k.code, b, d.skip, side));
   if(dates.every(Boolean)){ const last = dates.slice().sort().pop(); return {ok:true, t:'Taught '+nice(last,{day:'numeric',month:'short'})}; }
   const left = d.bat.filter((b,i)=>!dates[i]);
   return {ok:false, t: dates.some(Boolean) ? 'Pending for '+left.map(b=>b==='All'?'whole class':b).join(', ') : 'Pending'};
@@ -1266,9 +1423,10 @@ function pickStatus(k){
 function compListHTML(){
   const d = ui.dlg, q = d.q.toLowerCase();
   let list = S.competencies.filter(k => (d.topic==='all'||k.topic===d.topic) && (!q || (k.code+' '+k.text).toLowerCase().includes(q))).map(k=>({k, st:pickStatus(k)}));
-  if(d.show==='pending') list = list.filter(x=>!x.st.ok); else if(d.show==='taught') list = list.filter(x=>x.st.ok);
+  if(d.show==='pending') list = list.filter(x=>!x.st.ok && !x.st.na); else if(d.show==='taught') list = list.filter(x=>x.st.ok);
+  else if(d.show==='needed') list = list.filter(x=>!x.st.na);
   if(!list.length) return `<div class="empty"><b>No match.</b>${S.competencies.length?'Try other words or another filter.':'The list is empty. Upload it under Setup.'}</div>`;
-  return list.slice(0,300).map(({k,st})=>`<label class="${st.ok?'ok':'bad'}"><input type="checkbox" data-ch="ctoggle" data-c="${esc(k.code)}" ${d.sel.includes(k.code)?'checked':''}><b>${esc(k.code)}</b><span>${esc(k.text)}<br><span class="tp">${esc(k.topic)}</span></span><span class="st">${esc(st.t)}</span></label>`).join('');
+  return list.slice(0,300).map(({k,st})=>`<label class="${st.na?'na':st.ok?'ok':'bad'}"><input type="checkbox" data-ch="ctoggle" data-c="${esc(k.code)}" ${d.sel.includes(k.code)?'checked':''}><b>${esc(k.code)}</b><span>${esc(k.text)}<br><span class="tp">${esc(k.topic)}${k.objectives?' · objectives '+esc(k.objectives):''} · needs ${k.mode==='both'?'theory and practical':esc(k.mode)}</span></span><span class="st">${esc(st.t)}</span></label>`).join('');
 }
 function renderDlg(){
   const el = document.getElementById('dlg'), d = ui.dlg; if(!d) return;
@@ -1279,12 +1437,38 @@ function renderDlg(){
     <div class="dlg-b">
       <div class="bar" style="margin:0"><input type="text" id="cq" placeholder="Type a code or words, e.g. FM2.1 or hanging" value="${esc(d.q)}" style="flex:1" aria-label="Search">
         <select data-ch="ctopic" aria-label="Topic"><option value="all">All topics</option>${topics.map(t=>`<option ${t===d.topic?'selected':''}>${esc(t)}</option>`).join('')}</select>
-        <select data-ch="cshow" aria-label="Show"><option value="all">All</option><option value="pending" ${d.show==='pending'?'selected':''}>Pending only</option><option value="taught" ${d.show==='taught'?'selected':''}>Already taught</option></select></div>
-      <p class="help" style="margin:8px 0 0">Colours are for ${esc(course(d.cid).short)}, ${esc(who)}. Green: already taught. Red: pending.</p>
+        <select data-ch="cshow" aria-label="Show"><option value="all">All</option><option value="needed" ${d.show==='needed'?'selected':''}>Only those needing ${esc(d.side||'theory')}</option><option value="pending" ${d.show==='pending'?'selected':''}>Pending only</option><option value="taught" ${d.show==='taught'?'selected':''}>Already taught</option></select></div>
+      <p class="help" style="margin:8px 0 0">Colours are for ${esc(course(d.cid).short)}, ${esc(who)}, on the ${esc(d.side||'theory')} side, because that is what this class counts towards. Green: already covered. Red: pending. Grey: the competency does not need that side.</p>
       <p class="help" style="margin:4px 0 0">Selected: <span id="csel">${d.sel.length?esc(d.sel.join(', ')):'none'}</span></p>
       <div class="clist" id="clist">${compListHTML()}</div>
     </div>
     <div class="dlg-f"><button class="btn" data-act="dlgclose">Cancel</button><button class="btn primary" data-act="compsave">Use these</button></div>`;
+    return;
+  }
+  if(d.kind==='shift'){
+    const s = sess(d.sid);
+    if(!s){ el.innerHTML = '<div class="dlg-b"><p>That class is gone.</p></div>'; return; }
+    const fwd = planShift(s,'forward'), back = planShift(s,'back');
+    const row = (p,dir) => p.moves.length
+      ? `<div class="tbl-wrap" style="max-height:190px;overflow:auto;margin-top:8px"><table style="min-width:0"><tbody>
+          ${p.moves.slice().reverse().slice(0,6).map(m=>`<tr><td>${esc(nice(m.from.date))}</td><td>${esc(m.from.topic||'(no topic)')}</td><td>goes to</td><td>${esc(nice(m.to.date))}</td></tr>`).join('')}
+          ${p.moves.length>6?`<tr><td colspan="4" class="help">and ${p.moves.length-6} more</td></tr>`:''}</tbody></table></div>`
+      : `<p class="help">${esc(p.note||'Nothing to move.')}</p>`;
+    el.innerHTML = `<div class="dlg-h"><h2>Move the syllabus along</h2><button class="btn sm" data-act="dlgclose">Close</button></div>
+    <div class="dlg-b">
+      <p style="margin-top:0"><b>${esc(describe(s))}</b><br><span class="help">${esc(s.topic||'This class has no topic yet')}${s.comps.length?' · '+esc(s.comps.join(', ')):''}</span></p>
+      <p class="lead">The lecture order runs down the ${esc(typeName(s.type).toLowerCase())} classes of this course. Only topics and competency tags move. Teachers, dates and times stay where they are, and classes on a holiday, in an away week, or marked not held are stepped over.</p>
+      <h3 style="margin:14px 0 0;font-size:1rem">Carry this topic forward</h3>
+      <p class="help">Use this when the class is lost, to a holiday or anything else. Its topic goes to the next usable class and every later one shuffles down.</p>
+      ${row(fwd,'forward')}
+      ${fwd.lost?`<p class="help" style="color:var(--bad)">The last class, ${esc(nice(fwd.lost.date))}, holds "${esc(fwd.lost.topic||'its tags')}" and there is nothing after it, so that one would drop off the end. Add a class first if it must be taught.</p>`:''}
+      <h3 style="margin:18px 0 0;font-size:1rem">Pull the later topics back</h3>
+      <p class="help">The reverse, to close a gap: the next class's topic moves into this one, and the rest follow up.</p>
+      ${row(back,'back')}
+    </div>
+    <div class="dlg-f"><button class="btn" data-act="dlgclose">Cancel</button>
+      ${back.moves.length?`<button class="btn" data-act="shiftback" data-id="${s.id}">Pull back</button>`:''}
+      ${fwd.moves.length?`<button class="btn primary" data-act="shiftfwd" data-id="${s.id}">Carry forward</button>`:''}</div>`;
     return;
   }
   if(d.kind==='holfix'){
@@ -1293,7 +1477,7 @@ function renderDlg(){
     el.innerHTML = `<div class="dlg-h"><h2>Classes on ${esc(nice(d.date,{weekday:'long',day:'numeric',month:'long'}))}${to!==d.date?' to '+esc(nice(to,{weekday:'long',day:'numeric',month:'long'})):''}</h2><button class="btn sm" data-act="dlgclose">Close</button></div>
     <div class="dlg-b">
       ${list.length ? `<p style="margin-top:0">${esc(h?h.name:'This day')} is now a holiday, and ${list.length} class${list.length===1?' is':'es are'} planned in it. Reschedule each one, or deal with them together.</p>
-      <div class="tbl-wrap"><table style="min-width:0"><tbody>${list.map(s=>`<tr><td>${esc(describe(s))}<br><span class="help">${esc(person(s.facultyId)?.name||'No teacher')}. ${esc(s.topic)}</span></td><td style="width:1%"><button class="btn sm" data-act="reschdlg" data-id="${s.id}" data-back="${d.date}">Reschedule</button></td></tr>`).join('')}</tbody></table></div>`
+      <div class="tbl-wrap"><table style="min-width:0"><tbody>${list.map(s=>`<tr><td>${esc(describe(s))}<br><span class="help">${esc(person(s.facultyId)?.name||'No teacher')}. ${esc(s.topic)}</span></td><td style="width:1%;white-space:nowrap"><button class="btn sm" data-act="reschdlg" data-id="${s.id}" data-back="${d.date}">Reschedule</button>${(s.topic||s.comps.length)?` <button class="btn sm" data-act="shiftdlg" data-id="${s.id}">Carry topic forward</button>`:''}</td></tr>`).join('')}</tbody></table></div>`
       : `<p style="margin-top:0">All the classes on this day have been sorted.</p>`}
     </div>
     <div class="dlg-f">${list.length?`<button class="btn danger" data-act="holdel">Delete all ${list.length}</button><button class="btn" data-act="holkeep">Leave them for now</button>`:`<button class="btn primary" data-act="dlgclose">Done</button>`}</div>`;
@@ -1422,11 +1606,12 @@ function act(a, el){
     case 'pickcomp': {
       snapshotPF();
       let cid, bat, skip='';
-      if(id==='pf'){ cid = ui.pf.course || S.courses[0]?.id; bat = ui.pf.batches||[]; }
-      else { const s=sess(id); cid=s.courseId; bat=bats(s); skip=s.id; }
+      let side;
+      if(id==='pf'){ cid = ui.pf.course || S.courses[0]?.id; bat = ui.pf.batches||[]; side = typeOf(ui.pf.type||'theory').counts==='practical'?'practical':'theory'; }
+      else { const s=sess(id); cid=s.courseId; bat=bats(s); skip=s.id; side=countsAs(s); }
       const cb = course(cid).batches;
       if(!bat.length || bat.includes('All')) bat = cb.length ? [...cb] : ['All'];
-      openDlg({kind:'comps', target:id, sel: id==='pf' ? [...ui.pfComps] : [...sess(id).comps], q:'', topic:'all', show:'all', cid, bat, skip}); return; }
+      openDlg({kind:'comps', target:id, sel: id==='pf' ? [...ui.pfComps] : [...sess(id).comps], q:'', topic:'all', show:'all', cid, bat, skip, side}); return; }
     case 'compsave': { const d=ui.dlg; if(d.target==='pf') ui.pfComps=d.sel; else { sess(d.target).comps=d.sel; save(); } closeDlg(); break; }
     case 'rmcomp': { const s=sess(id); s.comps=s.comps.filter(c=>c!==el.dataset.c); save(); break; }
     case 'rmpfcomp': ui.pfComps=ui.pfComps.filter(c=>c!==el.dataset.c); break;
@@ -1438,7 +1623,19 @@ function act(a, el){
       toast(`Moved ${res.n} class${res.n===1?'':'es'}.${res.redo?' '+report(res.r):''}`);
       if(back){ render(); openDlg({kind:'holfix', date:back, to:ui.holfixTo}); return; }
       closeDlg(); break; }
-    case 'notheld': { const s=sess(id); s.notHeld=!s.notHeld; save(); toast(s.notHeld?'Marked as not held. Its competencies go back to pending.':'Marked as held'); break; }
+    case 'notheld': { const s=sess(id); s.notHeld=!s.notHeld; save();
+      if(s.notHeld && (s.topic||s.comps.length) && planShift(s,'forward').moves.length){
+        render(); openDlg({kind:'shift', sid:s.id}); toast('Marked as not held. Carry its topic forward?'); return; }
+      toast(s.notHeld?'Marked as not held. Its competencies go back to pending.':'Marked as held'); break; }
+    case 'shiftdlg': openDlg({kind:'shift', sid:id}); return;
+    case 'shiftfwd': case 'shiftback': {
+      const s=sess(id), dir = a==='shiftfwd' ? 'forward' : 'back';
+      const p = planShift(s, dir);
+      if(!p.moves.length){ toast(p.note||'Nothing to move'); return; }
+      const warn = dir==='forward' && p.lost ? `\n\n"${p.lost.topic||'The last tags'}" on ${nice(p.lost.date)} has nothing after it, so it would drop off the end.` : '';
+      if(!confirm(`Move ${p.moves.length} topic${p.moves.length===1?'':'s'} ${dir==='forward'?'one slot later':'one slot earlier'}?${warn}`)) return;
+      applyShift(s, dir); closeDlg();
+      toast(`${p.moves.length} topic${p.moves.length===1?'':'s'} moved.${dir==='forward'&&p.lost?' One dropped off the end.':''}`); break; }
     case 'holdel': { const d=ui.dlg.date, t=ui.dlg.to||d, n=S.sessions.filter(s=>s.date>=d && s.date<=t).length;
       if(!confirm(`Delete all ${n} classes from ${nice(d)} to ${nice(t)}?`)) return;
       S.sessions=S.sessions.filter(s=>s.date<d || s.date>t); save(); closeDlg(); toast('Classes deleted'); break; }
@@ -1588,16 +1785,31 @@ function act(a, el){
       if(hit.length){ render(); openDlg({kind:'holfix', date:d, to}); return; } break; }
     case 'delhol': S.holidays=S.holidays.filter(h=>h.from!==el.dataset.d); save(); break;
     case 'addcompk': { const code=document.getElementById('ck-code').value.trim(), topic=document.getElementById('ck-topic').value.trim(), text=document.getElementById('ck-text').value.trim();
+      const objectives=document.getElementById('ck-obj').value.trim(), mode=document.getElementById('ck-mode').value;
       if(!code||!text){ toast('Give the code and the competency'); return; }
-      S.competencies=S.competencies.filter(k=>k.code!==code); S.competencies.push({code,topic:topic||'Other',text}); sortComps(); save(); break; }
+      S.competencies=S.competencies.filter(k=>k.code!==code); S.competencies.push({code,topic:topic||'Other',text,objectives,mode}); sortComps(); save(); break; }
+    case 'bulkmode': { const t=document.getElementById('bm-topic').value, m=document.getElementById('bm-mode').value;
+      const hit=S.competencies.filter(k=>k.topic===t);
+      if(!confirm(`Set all ${hit.length} competencies under "${t}" to ${MODES.find(x=>x[0]===m)[1].toLowerCase()}?`)) return;
+      hit.forEach(k=>k.mode=m); save(); toast(`${hit.length} updated`); break; }
     case 'delcompk': S.competencies=S.competencies.filter(k=>k.code!==el.dataset.c); save(); break;
     case 'compclear': if(!confirm('Delete the whole competency list? Classes keep their codes.')) return; S.competencies=[]; save(); break;
     case 'compimport': if(!window.XLSX){ toast('The Excel reader could not load. Check the internet connection.'); return; } document.getElementById('importComps').click(); return;
     case 'comptemplate': compTemplate(); return;
+    case 'topicsout': exportTopicSheet(); return;
+    case 'topicsimport': if(!window.XLSX){ toast('The Excel reader could not load.'); return; } document.getElementById('importTopics').click(); return;
+    case 'topicsload': {
+      const r = ui.dlg.r[ui.dlg.how || 'byDate']; let n=0;
+      r.hits.forEach(h=>h.ids.forEach(sid=>{ const s=sess(sid); if(!s) return;
+        if(h.topic) s.topic = h.topic;
+        if(h.comps.length) s.comps = h.comps;
+        n++; }));
+      save(); closeDlg(); toast(`${n} class${n===1?'':'es'} updated. Teachers and times are unchanged.`); break; }
     case 'compload': {
       const d=ui.dlg, r=d.r;
       if(d.rmDemo) S.competencies = S.competencies.filter(k=>!k.code.startsWith('DEMO'));
-      r.good.forEach(k=>{ const e=S.competencies.find(x=>x.code.toLowerCase()===k.code.toLowerCase()); if(e){ e.text=k.text; e.topic=k.topic; } else S.competencies.push(k); });
+      r.good.forEach(k=>{ const e=S.competencies.find(x=>x.code.toLowerCase()===k.code.toLowerCase());
+        if(e){ e.text=k.text; e.topic=k.topic; e.mode=k.mode; e.objectives=k.objectives; } else S.competencies.push(k); });
       sortComps(); save(); closeDlg();
       toast(`Loaded: ${r.added} new, ${r.updated} updated${r.skipped.length?`, ${r.skipped.length} rows skipped`:''}`); break; }
     /* data */
@@ -1622,6 +1834,7 @@ function change(c, el){
     case 'rank': { const r=S.ranks.find(x=>x.id===id); r[f] = el.value; save(); break; }
     case 'rankw': { const r=S.ranks.find(x=>x.id===id); r.w[f] = Math.max(0, +el.value||0); save(); break; }
     case 'ctype': { const t=S.types.find(x=>x.id===id); t[f] = el.value; save(); break; }
+    case 'compk': { const k=compOf(el.dataset.c); if(k){ k[f] = el.value; save(); } break; }
     case 'fac': { const p=person(id); p[f] = (f==='active'||f==='office') ? el.checked : el.value.trim();
       if(f==='name' && S.faculty.some(x=>x.id!==id && x.name.trim().toLowerCase()===p.name.toLowerCase())) toast('Two teachers now share this name. Add an initial so the Excel file can tell them apart.');
       save(); break; }
@@ -1659,6 +1872,7 @@ function change(c, el){
     case 'covtopic': ui.covTopic = el.value; break;
     case 'covq': ui.covQ = el.value; break;
     case 'covpend': ui.covPending = el.checked; break;
+    case 'covside': ui.covSide = el.value; break;
     case 'compq': ui.compQ = el.value; break;
     case 'swapfilter': ui.swapFilter = el.value; break;
     case 'pref': { ME.prefs = ME.prefs||{}; ME.prefs[f] = el.checked;
@@ -1668,6 +1882,7 @@ function change(c, el){
     case 'ctoggle': { const d=ui.dlg, code=el.dataset.c; d.sel = el.checked ? [...d.sel, code] : d.sel.filter(x=>x!==code); document.getElementById('csel').textContent = d.sel.length?d.sel.join(', '):'none'; return; }
     case 'ctopic': ui.dlg.topic = el.value; renderDlg(); return;
     case 'cshow': ui.dlg.show = el.value; renderDlg(); return;
+    case 'tphow': ui.dlg.how = el.value; topicImportDlg(ui.dlg.r); return;
     case 'rmdemo': ui.dlg.rmDemo = el.checked; return;
     case 'swto': ui.dlg.to = el.value; ui.dlg.ex=''; ui.dlg.reason=document.getElementById('swreason').value; renderDlg(); return;
     case 'swex': ui.dlg.ex = el.value; ui.dlg.reason=document.getElementById('swreason').value; renderDlg(); return;
@@ -1768,8 +1983,12 @@ function exportCSV(){
 function exportCovCSV(){
   const c=course(covCourse()), batches=c.batches.length?c.batches:['All'];
   const q = x => `"${String(x??'').replace(/"/g,'""')}"`;
-  const lines=[['Code','Topic','Competency',...batches.map(batchLabel)].map(q).join(',')];
-  S.competencies.forEach(k=>lines.push([k.code,k.topic,k.text,...batches.map(b=>{const x=covStatus(c.id,k.code,b);return x.k==='done'?'Done '+x.d:x.k==='plan'?'Planned '+x.d:'Pending';})].map(q).join(',')));
+  const side = ui.covSide || 'all';
+  const lines=[['Code','Topic','Competency','Objectives','Needs',...batches.map(batchLabel)].map(q).join(',')];
+  S.competencies.forEach(k=>lines.push([k.code,k.topic,k.text,k.objectives||'',
+    k.mode==='both'?'Theory and practical':k.mode==='practical'?'Practical':'Theory',
+    ...batches.map(b=>{const x=covStatus(c.id,k.code,b,side);
+      return x.k==='na'?'Not needed':x.k==='done'?'Done '+x.d:x.k==='plan'?'Pending, on roster for '+x.d:'Pending';})].map(q).join(',')));
   download(`competency-coverage-${c.short.replace(/\W+/g,'-')}.csv`, '\ufeff'+lines.join('\r\n'), 'text/csv');
 }
 
@@ -1825,6 +2044,8 @@ function exportXLSX(){
     ['Classes: Not held is Yes for a class that did not take place. Leave it empty otherwise.'],
     ['Courses: Batches and Who can teach are separated by commas. An empty Who can teach means everyone. Each course has its own term dates. Hour targets are written as Practical 25; AETCOM 10.'],
     ['Ranks: one ratio column per class type. 0 means that rank is never given that type.'],
+    ['Class types: Counts as decides which side of a competency a class satisfies, Theory or Practical.'],
+    ['Competencies: Needs is Theory, Practical, or Both. A competency needing Both is covered only when a lecture and a practical have both been held.'],
     ['Rotations: one row per spell. Batches are separated by commas, and those batches attend together.'],
     ['Holidays: From and To. Use To for a vacation running over several days.'],
     ['Leave the ID columns alone. They link swaps to classes. For a new row, leave the ID empty.']], [110]);
@@ -1832,7 +2053,7 @@ function exportXLSX(){
   if(dups.length && !confirm(`Two or more teachers share a name (${dups.join(', ')}). The Excel file can't tell them apart. Download anyway?`)) return;
   const stampNow = new Date().toISOString();
   add('Department', [['Field','Value'],['Department name',S.settings.dept],['Institution',S.settings.inst],['Term starts',S.settings.termStart||''],['Term ends',S.settings.termEnd||''],['Office WhatsApp number',S.settings.clerkPhone||''],['Office email',S.settings.clerkEmail||''],['Office PIN (hashed)',S.settings.pinHash||''],['Saved at',stampNow]],[26,50]);
-  add('Class types', [['Type','Shown as'], ...S.types.map(t=>[t.name, t.style==='solid'?'Solid':'Hatched'])],[26,12]);
+  add('Class types', [['Type','Shown as','Counts as'], ...S.types.map(t=>[t.name, t.style==='solid'?'Solid':'Hatched', t.counts==='practical'?'Practical':'Theory'])],[26,12,14]);
   add('Ranks', [['Rank', ...S.types.map(t=>t.name)], ...S.ranks.map(r=>[r.name, ...S.types.map(t=>r.w[t.id]||0)])],[28, ...S.types.map(()=>13)]);
   add('Faculty', [['Name','Rank','Active','Leave','ID'], ...S.faculty.map(f=>[f.name,rankOf(f)?.name||'',f.active!==false?'Yes':'No',f.leaves.map(l=>l.to&&l.to!==l.from?`${dmy(l.from)} to ${dmy(l.to)}`:dmy(l.from)).join('; '),f.id])],[24,24,8,40,10]);
   add('Courses', [['Course','Short name','Colour','Batches','Term starts','Term ends','Hour targets','Who can teach','Who can teach, by class type','ID'],
@@ -1848,12 +2069,13 @@ function exportXLSX(){
   add('Classes', [['Date','Day','Start','End','Course','Type','Batch','Topic','Competencies','Venue','Teacher','Locked','ID','Reschedule history (leave as is)','Not held'],
     ...S.sessions.slice().sort(byTime).map(s=>[s.date,DAYS[dow(s.date)],s.start,s.end,course(s.courseId).short,typeName(s.type),s.batch,s.topic,s.comps.join(', '),s.venue,nm(s.facultyId),s.locked?'Yes':'No',s.id,(s.history||[]).length?JSON.stringify(s.history):'',s.notHeld?'Yes':''])],
     [13,5,7,7,11,10,12,34,18,20,20,7,10,30,9]);
-  add('Competencies', [['Code','Topic','Competency'], ...S.competencies.map(k=>[k.code,k.topic,k.text])],[10,30,90]);
+  add('Competencies', [['Code','Topic','Competency','Objectives','Needs'],
+    ...S.competencies.map(k=>[k.code,k.topic,k.text,k.objectives||'',k.mode==='both'?'Both':k.mode==='practical'?'Practical':'Theory'])],[12,30,90,18,12]);
   add('Swaps', [['Logged on','Class','From','To','In exchange for','Reason','Status','Decided on','Class ID','Exchange class ID','ID'],
     ...S.swaps.map(x=>[x.loggedOn,x.classText,nm(x.fromId),nm(x.toId),x.exchangeText,x.reason,x.status,x.decidedOn,x.sessionId,x.exchangeId,x.id])],[13,50,20,20,40,30,11,13,10,10,10]);
   XLSX.writeFile(wb, 'roster-data.xlsx');
   S.meta.savedAt = stampNow; S.meta.dirty = false; writeLocal(); render();
-  toast('Downloaded roster-data.xlsx. Now upload it to GitHub.');
+  toast('Downloaded roster-data.xlsx. Keep it as the backup.');
 }
 function fromWorkbook(wb){
   const rows = n => wb.Sheets[n] ? XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''}).slice(1).filter(r=>r.some(v=>String(v).trim()!=='')) : [];
@@ -1865,7 +2087,9 @@ function fromWorkbook(wb){
   d.meta = {savedAt:String(dep['saved at']||''), dirty:false};
   /* class types first: the rank ratios and the classes refer to them by name */
   rows('Class types').forEach(r=>{ const n=String(r[0]).trim(); if(!n) return;
-    d.types.push({id:n.toLowerCase().replace(/\W+/g,'-').slice(0,20), name:n, style:/solid/i.test(String(r[1]))?'solid':'hatch'}); });
+    const style=/solid/i.test(String(r[1]))?'solid':'hatch';
+    d.types.push({id:n.toLowerCase().replace(/\W+/g,'-').slice(0,20), name:n, style,
+      counts: String(r[2]||'').trim() ? (/^prac/i.test(String(r[2]).trim())?'practical':'theory') : (style==='solid'?'theory':'practical') }); });
   if(!d.types.length) d.types = DEFAULT_TYPES.map(t=>({...t}));
   const typeBy = n => { const t=String(n||'').trim(); return d.types.find(x=>key(x.name)===key(t) || x.id===key(t)); };
   const rh = (XLSX.utils.sheet_to_json(wb.Sheets['Ranks']||{},{header:1,defval:''})[0]||[]).map(String);
@@ -1932,7 +2156,11 @@ function fromWorkbook(wb){
       topic:String(r[7]||''), comps:String(r[8]||'').split(',').map(x=>x.trim()).filter(Boolean), venue:String(r[9]||''), facultyId:f?f.id:'', locked:yes(r[11]), notHeld:yes(r[14]||''), history:(()=>{ try{ const h=JSON.parse(r[13]||'[]'); return Array.isArray(h)?h:[]; }catch(e){ return []; } })()});
   });
   if(bad>3) warn.push(`${bad} class rows skipped in all`);
-  rows('Competencies').forEach(r=>{ const code=String(r[0]).trim(); if(code) d.competencies.push({code, topic:String(r[1]||'').trim()||'Other', text:String(r[2]||'').trim()}); });
+  rows('Competencies').forEach(r=>{ const code=String(r[0]).trim(); if(!code) return;
+    const md=String(r[4]||'').trim().toLowerCase();
+    d.competencies.push({code, topic:String(r[1]||'').trim()||'Other', text:String(r[2]||'').trim(),
+      objectives:String(r[3]||'').trim(),
+      mode: /both|theory and practical/.test(md) ? 'both' : /^prac|^skill/.test(md) ? 'practical' : 'theory'}); });
   rows('Swaps').forEach(r=>{ d.swaps.push({id:String(r[10]||'').trim()||uid(), loggedOn:xdate(r[0])||TODAY, classText:String(r[1]||''), fromId:facBy(r[2])?.id||'', toId:facBy(r[3])?.id||'', exchangeText:String(r[4]||''), reason:String(r[5]||''),
     status:['Requested','Accepted','Declined'].find(x=>key(x)===key(r[6]))||'Requested', decidedOn:xdate(r[7]), sessionId:String(r[8]||''), exchangeId:String(r[9]||'')}); });
   return {data:normalize(d), warn};
@@ -1946,19 +2174,141 @@ function compTemplate(){
     ['2. Code is required. Write it exactly as in the NMC document, for example FM2.1.'],
     ['3. Topic is optional. Write the topic name as in the document. The same topic name on many rows groups them together.'],
     ['4. Competency is required. Copy the full wording from the NMC document.'],
+    ['4a. Objectives is optional, for example 3.1.1 to 3.1.8.'],
+    ['4b. Needs says what the competency takes to cover: Theory, Practical, or Both. Left empty it is read as Theory.'],
     ['5. Each code should appear only once. If a code is repeated, the second row is skipped.'],
     ['6. Save the file, then in the roster page press Upload filled file.'],
     ['7. Uploading again later is safe. New codes are added and changed wording is updated. Nothing is deleted.'],
     [''],
     ['Examples of how rows look (do not copy these into the Competencies sheet):'],
-    ['Code','Topic','Competency'],
-    ['FM1.1','Topic 1 name, as in the document','Full wording of FM1.1, copied from the document'],
-    ['FM1.2','Topic 1 name, as in the document','Full wording of FM1.2, copied from the document'],
-    ['FM14.1','Topic 14 name, as in the document','Full wording of FM14.1, copied from the document']
-  ],[100,40,60]), 'Instructions');
-  XLSX.utils.book_append_sheet(wb, makeSheet([['Code','Topic','Competency']],[12,40,100]), 'Competencies');
+    ['Code','Topic','Competency','Objectives','Needs'],
+    ['FM 3.1','Topic 3 name, as in the document','Full wording of FM 3.1, copied from the document','3.1.1 to 3.1.8','Theory'],
+    ['FM 14.1','Topic 14 name, as in the document','Full wording of FM 14.1, copied from the document','14.1.1, 14.1.2','Both'],
+    ['FM 14.4','Topic 14 name, as in the document','Full wording of FM 14.4, copied from the document','14.4.1 to 14.4.3','Practical']
+  ],[100,40,60,20,14]), 'Instructions');
+  XLSX.utils.book_append_sheet(wb, makeSheet([['Code','Topic','Competency','Objectives','Needs']],[12,40,100,20,14]), 'Competencies');
   XLSX.writeFile(wb,'competency-list-sample.xlsx');
   toast('Downloaded competency-list-sample.xlsx');
+}
+
+function exportTopicSheet(){
+  if(!window.XLSX){ toast('The Excel writer could not load.'); return; }
+  const cid = (document.getElementById('tp-course')||{}).value || S.courses[0]?.id;
+  const c = course(cid);
+  const list = S.sessions.filter(s=>s.courseId===cid).sort(byTime);
+  if(!list.length){ toast('That course has no classes yet'); return; }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, makeSheet([
+    ['How to fill in this file'],
+    ['1. Open the Classes sheet. There is one row for every class already on the roster for this course.'],
+    ['2. Fill in the Topic column with the lecture or practical title.'],
+    ['3. Fill in the Competencies column with the codes, separated by commas, for example: FM 3.1, FM 3.2'],
+    ['4. A run of codes may be written as a range, for example FM 3.1-3.12, and it stands for every code in the list between the two.'],
+    ['5. Leave Date, Start and Course alone. Those three are how each row finds its class.'],
+    ['6. Save the file, then press "Load a filled sheet" on the roster page.'],
+    ['7. Nothing else is touched. Teachers, venues and times stay exactly as they are.'],
+    ['8. A row left empty in both Topic and Competencies is skipped, so that class keeps what it already has.']
+  ],[110]), 'Instructions');
+  XLSX.utils.book_append_sheet(wb, makeSheet([
+    ['Date','Start','Course','Type','Batch','Topic','Competencies'],
+    ...list.map(s=>[s.date, s.start, c.short, typeName(s.type), batsLabel(s), s.topic||'', (s.comps||[]).join(', ')])
+  ],[13,8,11,14,16,46,30]), 'Classes');
+  XLSX.writeFile(wb, `topics-${c.short.replace(/\W+/g,'-')}.xlsx`);
+  toast('Fill in Topic and Competencies, then load it back');
+}
+
+/* match a filled sheet against the classes already on the roster */
+function readTopicFile(wb){
+  const name = wb.SheetNames.find(n=>/^class/i.test(n)) || wb.SheetNames.find(n=>!/^instruc/i.test(n)) || wb.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:''});
+  const hdr = (rows[0]||[]).map(v=>String(v).trim().toLowerCase());
+  const col = (re,d) => { const i = hdr.findIndex(h=>re.test(h)); return i>=0?i:d; };
+  const cD=col(/^date/,0), cS=col(/^start/,1), cC=col(/^course/,2), cT=col(/^topic/,5), cK=col(/^competenc/,6);
+  const cY=col(/^type/,3), cB=col(/^batch/,4);
+  const items=[], skipped=[];
+  for(let i=1;i<rows.length;i++){
+    const r = rows[i]; if(!r || !r.some(v=>String(v).trim()!=='')) continue;
+    const topic = String(r[cT]||'').trim(), comps = String(r[cK]||'').split(',').map(x=>x.trim()).filter(Boolean);
+    if(!topic && !comps.length) continue;
+    const date = xdate(r[cD]);
+    if(!date){ skipped.push(`Row ${i+1}: no date`); continue; }
+    items.push({row:i+1, date, start:xtime(r[cS]), courseName:String(r[cC]||'').trim(),
+      typeName:String(r[cY]||'').trim(), batch:String(r[cB]||'').trim(), topic, comps,
+      bad: comps.filter(x=>expandComps([x]).every(c2=>!compOf(c2)))});
+  }
+  /* by date: every row goes to the class standing on that date */
+  const byDate = (()=>{
+    const hits=[], unknown=[], seen=new Set();
+    for(const it of items){
+      let pool = S.sessions.filter(s=>s.date===it.date && (!it.start || s.start===it.start));
+      if(it.courseName) pool = pool.filter(s=>{ const c2=course(s.courseId); return c2.short.toLowerCase()===it.courseName.toLowerCase() || c2.name.toLowerCase()===it.courseName.toLowerCase(); });
+      pool = pool.filter(s=>!seen.has(s.id));
+      if(!pool.length){ unknown.push(`${nice(it.date)}${it.start?' '+t12(it.start):''}${it.courseName?' '+it.courseName:''}: no class on the roster`); continue; }
+      pool.forEach(s=>seen.add(s.id));
+      hits.push({ids:pool.map(s=>s.id), date:it.date, start:it.start, topic:it.topic, comps:it.comps, n:pool.length, bad:it.bad});
+    }
+    return {hits, unknown, spare:[]};
+  })();
+  /* in order: the rows are laid down the course's classes one after another, so a
+     lecture lost to a holiday is not lost at all, it simply moves everything along */
+  const inOrder = (()=>{
+    const hits=[], unknown=[], groups=new Map();
+    for(const it of items){
+      const c2 = S.courses.find(c3=>c3.short.toLowerCase()===it.courseName.toLowerCase() || c3.name.toLowerCase()===it.courseName.toLowerCase());
+      const ty = S.types.find(t=>t.name.toLowerCase()===it.typeName.toLowerCase());
+      const batch = !it.batch || /^whole/i.test(it.batch) ? 'All' : it.batch.replace(/^batch(es)?\s+/i,'').split(',').map(x=>x.trim()).join('+');
+      const key = (c2?c2.id:'?')+'|'+(ty?ty.id:'?')+'|'+batch;
+      if(!groups.has(key)) groups.set(key, {c:c2, ty, batch, list:[]});
+      groups.get(key).list.push(it);
+    }
+    for(const [key,g] of groups){
+      if(!g.c || !g.ty){ g.list.forEach(it=>unknown.push(`Row ${it.row}: course "${it.courseName}" or type "${it.typeName}" is not on the roster`)); continue; }
+      const slots = S.sessions.filter(s=>s.courseId===g.c.id && s.type===g.ty.id && s.batch===g.batch
+        && !holiday(s.date) && !away(s) && !s.notHeld).sort(byTime);
+      g.list.sort((a,b)=>a.date.localeCompare(b.date)||String(a.start).localeCompare(String(b.start)));
+      g.list.forEach((it,i)=>{
+        const sl = slots[i];
+        if(!sl){ unknown.push(`${esc_(it.topic)||'Row '+it.row}: the ${g.c.short} ${g.ty.name.toLowerCase()} stream runs out after ${slots.length} classes`); return; }
+        hits.push({ids:[sl.id], date:sl.date, start:sl.start, topic:it.topic, comps:it.comps, n:1, bad:it.bad,
+          moved: sl.date!==it.date ? it.date : ''});
+      });
+      if(slots.length>g.list.length) g.spare = slots.length-g.list.length;
+    }
+    const spare = [...groups.values()].filter(g=>g.spare).map(g=>`${g.c.short} ${g.ty.name.toLowerCase()}: ${g.spare} class${g.spare===1?'':'es'} at the end with no topic`);
+    return {hits, unknown, spare};
+  })();
+  const pick = r => ({...r, unknownCodes:[...new Set(r.hits.flatMap(h=>h.bad))], classes:r.hits.reduce((a,h)=>a+h.n,0)});
+  return {sheet:name, skipped, byDate:pick(byDate), inOrder:pick(inOrder)};
+}
+const esc_ = v => String(v||'');
+function topicImportDlg(all){
+  const el = document.getElementById('dlg');
+  const how = ui.dlg.how || 'byDate';
+  const r = all[how];
+  const moved = r.hits.filter(h=>h.moved).length;
+  el.innerHTML = `<div class="dlg-h"><h2>Check before loading</h2><button class="btn sm" data-act="dlgclose">Close</button></div>
+  <div class="dlg-b">
+    <p style="margin-top:0">Read from the sheet <b>${esc(all.sheet)}</b>.</p>
+    <div class="batches" style="margin:0 0 12px">
+      <label><input type="radio" name="tphow" data-ch="tphow" value="byDate" ${how==='byDate'?'checked':''}> Keep every topic on the date written in the sheet</label>
+      <label><input type="radio" name="tphow" data-ch="tphow" value="inOrder" ${how==='inOrder'?'checked':''}> Lay the topics down in order, so a lost day shifts the rest</label>
+    </div>
+    <p class="help" style="margin-top:0">${how==='byDate'
+      ? 'A row whose date has no class, a holiday for instance, is reported and left out. The lecture is simply not taught.'
+      : 'The dates in the sheet set the order only. Each topic then goes onto the next teaching class of that course and type, stepping over holidays, away weeks and classes marked not held. A lecture that loses its day is carried into the following slot and everything after it shuffles down.'}</p>
+    <div class="imp-sum"><span><b>${r.hits.length}</b>rows placed</span>
+      ${how==='inOrder'?`<span><b>${moved}</b>moved to another date</span>`:''}
+      <span style="color:${r.unknown.length?'var(--bad)':'inherit'}"><b>${r.unknown.length}</b>with no class</span>
+      <span style="color:${all.skipped.length?'var(--bad)':'inherit'}"><b>${all.skipped.length}</b>rows skipped</span></div>
+    ${r.unknownCodes.length?`<p class="help" style="color:var(--hol-ink)">These codes are not on the competency list. They will be stored as typed, but will not appear in the coverage table until the list holds them: ${esc(r.unknownCodes.slice(0,12).join(', '))}${r.unknownCodes.length>12?' and more':''}.</p>`:''}
+    ${r.spare && r.spare.length?`<p class="help">${r.spare.map(esc).join('. ')}.</p>`:''}
+    ${(r.unknown.length||all.skipped.length)?`<ul class="skips">${[...r.unknown,...all.skipped].slice(0,40).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
+    ${r.hits.length?`<p class="help" style="margin-top:12px">${how==='inOrder'&&moved?'The ones that move:':'First few:'}</p>
+      <div class="tbl-wrap" style="max-height:200px;overflow:auto"><table style="min-width:0"><tbody>${
+        (how==='inOrder'&&moved ? r.hits.filter(h=>h.moved) : r.hits).slice(0,10).map(h=>`<tr><td>${esc(h.topic||'(topic left as is)')}</td>${h.moved?`<td class="help">${esc(nice(h.moved))} →</td>`:'<td></td>'}<td>${esc(nice(h.date))}${h.start?' '+esc(t12(h.start)):''}</td><td>${esc(h.comps.join(', '))}</td></tr>`).join('')}</tbody></table></div>`
+      :`<p class="help">Nothing could be placed. Check that the course and type names in the sheet match the roster.</p>`}
+  </div>
+  <div class="dlg-f"><button class="btn" data-act="dlgclose">Cancel</button>${r.hits.length?`<button class="btn primary" data-act="topicsload">Load these topics</button>`:''}</div>`;
 }
 
 /* read an uploaded competency file and build the check screen */
@@ -1966,22 +2316,29 @@ function readCompFile(wb){
   const name = wb.SheetNames.find(n=>/^competenc/i.test(n)) || wb.SheetNames.find(n=>!/^instruc/i.test(n)) || wb.SheetNames[0];
   const rows = XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:false,defval:'',blankrows:true});
   let h = rows.findIndex((r,i)=>i<10 && r.some(v=>/^\s*code\s*$/i.test(String(v))));
-  let ci=0, ti=1, xi=2;
+  let ci=0, ti=1, xi=2, oi=-1, mi=-1;
   if(h>=0){ const hr=rows[h].map(v=>String(v).trim().toLowerCase());
-    ci=hr.findIndex(v=>v==='code'); const t=hr.findIndex(v=>v==='topic'); ti=t; const x=hr.findIndex(v=>/^competenc|^description|^wording/.test(v)); xi=x>=0?x:(ci+2); }
+    ci=hr.findIndex(v=>v==='code'); const t=hr.findIndex(v=>v==='topic'); ti=t; const x=hr.findIndex(v=>/^competenc|^description|^wording/.test(v)); xi=x>=0?x:(ci+2);
+    oi=hr.findIndex(v=>/^objective/.test(v)); mi=hr.findIndex(v=>/^needs|^mode|^taught/.test(v)); }
+  const readMode = v => { const t=String(v||'').trim().toLowerCase();
+    if(/both|theory and practical|t\s*\+\s*p/.test(t)) return 'both';
+    if(/^prac|^skill/.test(t)) return 'practical';
+    return 'theory'; };
   const start = h>=0 ? h+1 : 0, seen = {}, good = [], skipped = [];
   for(let i=start; i<rows.length; i++){
     const r = rows[i], code = String(r[ci]||'').trim(), topic = ti>=0 ? String(r[ti]||'').trim() : '', text = String(r[xi]||'').trim();
+    const objectives = oi>=0 ? String(r[oi]||'').trim() : '', mode = mi>=0 ? readMode(r[mi]) : 'theory';
     if(!code && !text && !topic) continue;
     const row = i+1 + (XLSX.utils.decode_range(wb.Sheets[name]['!ref']||'A1').s.r);
     if(!code){ skipped.push(`Row ${row}: code missing`); continue; }
     if(!text){ skipped.push(`Row ${row}: ${code} has no competency wording`); continue; }
     if(seen[code.toLowerCase()]){ skipped.push(`Row ${row}: ${code} appears twice (first on row ${seen[code.toLowerCase()]})`); continue; }
     seen[code.toLowerCase()] = row;
-    good.push({code, topic:topic||'Other', text});
+    good.push({code, topic:topic||'Other', text, objectives, mode});
   }
   let added=0, updated=0, same=0;
-  good.forEach(k=>{ const e=S.competencies.find(x=>x.code.toLowerCase()===k.code.toLowerCase()); if(!e) added++; else if(e.text!==k.text||e.topic!==k.topic) updated++; else same++; });
+  good.forEach(k=>{ const e=S.competencies.find(x=>x.code.toLowerCase()===k.code.toLowerCase());
+    if(!e) added++; else if(e.text!==k.text||e.topic!==k.topic||e.mode!==k.mode||(e.objectives||'')!==k.objectives) updated++; else same++; });
   return {sheet:name, good, skipped, added, updated, same};
 }
 function compImportDlg(r){
@@ -2032,6 +2389,19 @@ document.getElementById('importFile').addEventListener('change', e=>{
         toast(res.warn.length ? `Opened, with ${res.warn.length} note${res.warn.length===1?'':'s'}. First: ${res.warn[0]}` : 'Excel file opened'); if(res.warn.length) console.warn(res.warn.join('\n')); }
     }catch(err){ toast(err.message||'That file could not be read'); }
     e.target.value='';
+  };
+  rd.readAsArrayBuffer(file);
+});
+document.getElementById('importTopics').addEventListener('change', e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const r = readTopicFile(XLSX.read(rd.result,{type:'array'}));
+      ui.dlg = {kind:'topicimport', r, how:'byDate'}; topicImportDlg(r);
+      const el=document.getElementById('dlg'); if(!el.open) el.showModal();
+    }catch(err){ toast(err.message||'That file could not be read'); }
+    finally{ e.target.value=''; }
   };
   rd.readAsArrayBuffer(file);
 });
