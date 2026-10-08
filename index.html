@@ -1280,6 +1280,21 @@ function viewSetup(){
     </div>
     <p class="help" style="margin-top:10px">The sheet carries one row per class: Date, Start, Course, Type, Batch, Topic and Competencies. Fill in the last two and load it back. Rows are matched on date, start time and course, so leave those three alone. Competencies are codes separated by commas, and a run may be written as a range, for example FM 3.1-3.12.</p>
   </div>
+  <div class="panel">
+    <h2>Change the time of a slot</h2>
+    <p class="lead">When the Dean's office moves a slot, every class standing in it has to move with it. Pick the course, the type and the time it runs at now, then set the new time. Only the start and end change; the dates, the teachers and everything else stay where they are. Leave the two date boxes empty to take the whole year, or fill them to change one stretch.</p>
+    <div class="grid-form">
+      <label>Course<select id="sl-course">${S.courses.map(c=>`<option value="${c.id}" ${c.id===(ui.sl?.course)?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+      <label>Class type<select id="sl-type"><option value="">Any type</option>${S.types.map(t=>`<option value="${t.id}" ${t.id===(ui.sl?.type)?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
+      <label>Runs now from<input type="time" id="sl-start" value="${ui.sl?.start||''}"></label>
+      <label>to<input type="time" id="sl-end" value="${ui.sl?.end||''}"></label>
+      <label>Only from this date<input type="date" id="sl-from" value="${ui.sl?.from||''}"></label>
+      <label>up to this date<input type="date" id="sl-to" value="${ui.sl?.to||''}"></label>
+      <label>New start<input type="time" id="sl-nstart" value="${ui.sl?.nstart||''}"></label>
+      <label>New end<input type="time" id="sl-nend" value="${ui.sl?.nend||''}"></label>
+    </div>
+    <div class="row-actions"><button class="btn primary" data-act="slotfind">Find the classes</button></div>
+  </div>
   ${dataPanel()}`;
 }
 
@@ -1298,6 +1313,57 @@ function dataPanel(){
       <li>"Load a roster from Excel" takes the roster-data.xlsx file from the earlier version of this tool. Use it once, when setting up.</li>
     </ol>
   </div>`;
+}
+
+/* ============ moving a whole slot to another time ============ */
+function slotForm(){
+  const g = id => (document.getElementById(id)||{}).value || '';
+  return {course:g('sl-course'), type:g('sl-type'), start:g('sl-start'), end:g('sl-end'),
+    from:g('sl-from'), to:g('sl-to'), nstart:g('sl-nstart'), nend:g('sl-nend')};
+}
+function slotFind(f){
+  return S.sessions.filter(s => s.courseId===f.course
+    && (!f.type || s.type===f.type)
+    && (!f.start || s.start===f.start)
+    && (!f.end || s.end===f.end)
+    && (!f.from || s.date>=f.from)
+    && (!f.to || s.date<=f.to)).sort(byTime);
+}
+/* what the move would break: the same teacher or the same batch in two places at once */
+function slotClashes(list, f){
+  const ids = new Set(list.map(s=>s.id)), out = [];
+  for(const s of list){
+    const probe = {...s, start:f.nstart, end:f.nend};
+    const tf = person(s.facultyId);
+    if(tf && S.sessions.some(x=>!ids.has(x.id) && x.facultyId===tf.id && overlaps(x,probe)))
+      out.push(`${nice(s.date)}: ${tf.name} already teaches at the new time`);
+    if(S.sessions.some(x=>!ids.has(x.id) && x.courseId===s.courseId && overlaps(x,probe)
+        && (x.batch==='All' || s.batch==='All' || bats(x).some(bb=>bats(s).includes(bb)))))
+      out.push(`${nice(s.date)}: ${batsLabel(s)} already has a class at the new time`);
+  }
+  return [...new Set(out)];
+}
+function slotDlg(d){
+  const el = document.getElementById('dlg'), f = d.f, list = d.list;
+  const batches = [...new Set(list.map(s=>batsLabel(s)))];
+  const types = [...new Set(list.map(s=>typeName(s.type)))];
+  const oldH = hSum(list), newH = list.length * Math.max(0, mins(f.nend)-mins(f.nstart))/60;
+  el.innerHTML = `<div class="dlg-h"><h2>Check before changing</h2><button class="btn sm" data-act="dlgclose">Close</button></div>
+  <div class="dlg-b">
+    <p style="margin-top:0"><b>${esc(course(f.course).short)}</b>, ${esc(types.join(' and ').toLowerCase()||'any type')}, moving from <b>${esc(t12(list[0].start))} to ${esc(t12(list[0].end))}</b> to <b>${esc(t12(f.nstart))} to ${esc(t12(f.nend))}</b>.</p>
+    <div class="imp-sum"><span><b>${list.length}</b>classes</span>
+      <span><b>${nice(list[0].date,{day:'numeric',month:'short',year:'numeric'})}</b>first</span>
+      <span><b>${nice(list[list.length-1].date,{day:'numeric',month:'short',year:'numeric'})}</b>last</span>
+      <span><b>${oldH.toFixed(0)}</b>hours now</span><span><b>${newH.toFixed(0)}</b>hours after</span></div>
+    <p class="help">Batches: ${esc(batches.join(', '))}. Teachers, dates and everything else stay as they are.${Math.abs(newH-oldH)>0.01?` The workload changes by ${(newH-oldH)>0?'+':''}${(newH-oldH).toFixed(0)} hours, so the fair-share figures move with it.`:''}</p>
+    ${d.clashes.length?`<p class="help" style="color:var(--bad)">${d.clashes.length} clash${d.clashes.length===1?'':'es'} at the new time. Nothing is stopped, but put these right afterwards, or run Redo every assignment.</p>
+      <ul class="skips">${d.clashes.slice(0,25).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:`<p class="help" style="color:var(--ok)">No clash at the new time.</p>`}
+    <div class="tbl-wrap" style="max-height:190px;overflow:auto;margin-top:10px"><table style="min-width:0"><tbody>
+      ${list.slice(0,8).map(s=>`<tr><td>${esc(nice(s.date))}</td><td>${esc(batsLabel(s))}</td><td>${esc(t12(s.start))} to ${esc(t12(s.end))}</td><td>becomes</td><td>${esc(t12(f.nstart))} to ${esc(t12(f.nend))}</td></tr>`).join('')}
+      ${list.length>8?`<tr><td colspan="5" class="help">and ${list.length-8} more</td></tr>`:''}
+    </tbody></table></div>
+  </div>
+  <div class="dlg-f"><button class="btn" data-act="dlgclose">Cancel</button><button class="btn primary" data-act="slotapply">Change the time</button></div>`;
 }
 
 /* ============ moving the syllabus along ============
@@ -1445,6 +1511,7 @@ function renderDlg(){
     <div class="dlg-f"><button class="btn" data-act="dlgclose">Cancel</button><button class="btn primary" data-act="compsave">Use these</button></div>`;
     return;
   }
+  if(d.kind==='slot'){ slotDlg(d); return; }
   if(d.kind==='shift'){
     const s = sess(d.sid);
     if(!s){ el.innerHTML = '<div class="dlg-b"><p>That class is gone.</p></div>'; return; }
@@ -1796,6 +1863,19 @@ function act(a, el){
     case 'compclear': if(!confirm('Delete the whole competency list? Classes keep their codes.')) return; S.competencies=[]; save(); break;
     case 'compimport': if(!window.XLSX){ toast('The Excel reader could not load. Check the internet connection.'); return; } document.getElementById('importComps').click(); return;
     case 'comptemplate': compTemplate(); return;
+    case 'slotfind': {
+      const f = slotForm(); ui.sl = f;
+      if(!f.nstart || !f.nend || mins(f.nend)<=mins(f.nstart)){ toast('Give a new start and end, with the end after the start'); render(); return; }
+      if(!f.start && !f.end && !f.type){ toast('Narrow it down: give the time it runs at now, or a class type'); render(); return; }
+      const list = slotFind(f);
+      if(!list.length){ toast('No class matches that. Check the time it runs at now.'); render(); return; }
+      if(list.some(x=>x.start===f.nstart && x.end===f.nend) && list.every(x=>x.start===f.nstart && x.end===f.nend)){ toast('Those classes already run at the new time'); render(); return; }
+      render(); openDlg({kind:'slot', f, list, clashes:slotClashes(list,f)}); return; }
+    case 'slotapply': {
+      const d = ui.dlg, f = d.f;
+      d.list.forEach(s=>{ s.start = f.nstart; s.end = f.nend; });
+      save(); ui.checks = null; closeDlg();
+      toast(`${d.list.length} class${d.list.length===1?'':'es'} now run ${t12(f.nstart)} to ${t12(f.nend)}.`); break; }
     case 'topicsout': exportTopicSheet(); return;
     case 'topicsimport': if(!window.XLSX){ toast('The Excel reader could not load.'); return; } document.getElementById('importTopics').click(); return;
     case 'topicsload': {
