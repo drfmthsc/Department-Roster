@@ -748,15 +748,31 @@ const longDate = d => { const p = parse(d);
 const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-function printDoc(){
+/* the month the Roster tab is sitting on, and what the filters leave in it */
+function monthSpan(){
   const d = parse(ui.anchor);
   const from = iso(new Date(d.getFullYear(), d.getMonth(), 1));
   const to   = iso(new Date(d.getFullYear(), d.getMonth()+1, 0));
-  const monthName = d.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const monthName = MONTHS_FULL[d.getMonth()] + ' ' + d.getFullYear();
   const list = visible(from, to).sort(byTime);
-  const scope = ui.course==='all' ? '' : course(ui.course).name;
-  const tf = ui.type==='all' ? '' : typeName(ui.type);
-  const who = ui.teacher==='all' ? '' : (person(ui.teacher)||{}).name;
+  const sub = [ui.course==='all' ? 'All courses' : course(ui.course).name,
+    ui.type==='all' ? '' : typeName(ui.type)+' only',
+    ui.teacher==='all' ? '' : 'Classes of '+(person(ui.teacher)||{}).name,
+    `${list.length} class${list.length===1?'':'es'}`,
+    `${hSum(list).toFixed(1).replace('.0','')} teaching hours`].filter(Boolean);
+  return {from, to, monthName, list, sub};
+}
+/* one class as the six columns the roster shows */
+function rosterCells(s){
+  const f = person(s.facultyId), aw = away(s);
+  const note = s.notHeld ? 'Not held' : (aw ? aw.reason : '');
+  return [span12(s.start, s.end), course(s.courseId).short, typeName(s.type),
+    s.batch==='All' ? 'All' : bats(s).join(', '), compsOf(s).join(', ') || '—',
+    f ? f.name : (note || 'Not yet assigned'), note && f ? note : ''];
+}
+
+function printDoc(){
+  const {from, to, monthName, list, sub:subBits} = monthSpan();
 
   let rows = '';
   for(let x=from; x<=to; x=addDays(x,1)){
@@ -766,23 +782,20 @@ function printDoc(){
     rows += `<tr class="pd-day"><td colspan="6">${esc(longDate(x))}${notes?`<span class="pd-note">${esc(notes)}</span>`:''}</td></tr>`;
     if(!day.length){ rows += `<tr class="pd-off"><td colspan="6">No class.</td></tr>`; continue; }
     for(const s of day){
-      const c = course(s.courseId), f = person(s.facultyId), aw = away(s);
-      const note = s.notHeld ? 'Not held' : (aw ? aw.reason : '');
-      rows += `<tr${note?' class="pd-off"':''}>
-        <td class="pd-t">${esc(span12(s.start, s.end))}</td>
-        <td>${esc(c.short)}</td>
-        <td>${esc(typeName(s.type))}</td>
-        <td class="pd-c">${esc(s.batch==='All'?'All':bats(s).join(', '))}</td>
-        <td>${esc(compsOf(s).join(', ')||'—')}</td>
-        <td>${esc(f ? f.name : (note || 'Not yet assigned'))}${note&&f?`<br><i>${esc(note)}</i>`:''}</td>
+      const [tm, cs, ty, bt, cp, te, note] = rosterCells(s);
+      rows += `<tr${(s.notHeld||away(s))?' class="pd-off"':''}>
+        <td class="pd-t">${esc(tm)}</td>
+        <td>${esc(cs)}</td>
+        <td>${esc(ty)}</td>
+        <td class="pd-c">${esc(bt)}</td>
+        <td>${esc(cp)}</td>
+        <td>${esc(te)}${note?`<br><i>${esc(note)}</i>`:''}</td>
       </tr>`;
     }
   }
   if(!rows) rows = `<tr><td colspan="6" style="text-align:center;padding:18px">No classes in ${esc(monthName)}.</td></tr>`;
 
-  const sub = [scope||'All courses', tf?tf+' only':'', who?'Classes of '+who:'',
-    `${list.length} class${list.length===1?'':'es'}`, `${hSum(list).toFixed(1).replace('.0','')} teaching hours`]
-    .filter(Boolean).join('   •   ');
+  const sub = subBits.join('   •   ');
 
   return `
   <div class="pd-head">
@@ -804,6 +817,42 @@ function printDoc(){
     <div class="pd-sign"><div>Office</div><div>Head of the Department</div></div>
   </div>`;
 }
+/* the same document as a CSV, so the office can open it in Excel, change a
+   name or a time, set the font and print it from there */
+function rosterCSV(){
+  const {from, to, monthName, list, sub} = monthSpan();
+  const q = x => `"${String(x==null?'':x).replace(/"/g,'""')}"`;
+  const line = (...cells) => { const a = [...cells]; while(a.length<6) a.push(''); return a.slice(0,6).map(q).join(','); };
+  const out = [];
+  if(S.settings.inst) out.push(line(S.settings.inst));
+  out.push(line(S.settings.dept.toUpperCase()));
+  out.push(line(''));
+  out.push(line(`Teaching Roster for the Month of ${monthName}`));
+  out.push(line(sub.join(' | ')));
+  out.push(line(''));
+  out.push(line('Time','Course','Class','Batch','Competency','Teacher'));
+  for(let x=from; x<=to; x=addDays(x,1)){
+    const day = list.filter(s=>s.date===x), h = holiday(x), bl = blocksOn(x);
+    if(!day.length && !h) continue;
+    const notes = [h?h.name:'', ...bl.map(b=>blocksLabel(b))].filter(Boolean).join(' · ');
+    out.push(line(longDate(x) + (notes ? '   ' + notes : '')));
+    if(!day.length){ out.push(line('No class.')); continue; }
+    for(const s of day){
+      const [tm, cs, ty, bt, cp, te, note] = rosterCells(s);
+      out.push(line(tm, cs, ty, bt, cp, te + (note ? ' (' + note + ')' : '')));
+    }
+  }
+  if(list.length===0) out.push(line(`No classes in ${monthName}.`));
+  out.push(line(''));
+  out.push(line('GENERAL INSTRUCTIONS'));
+  rulesList().forEach((r,i)=>out.push(line(`${i+1}. ${r}`)));
+  out.push(line(''));
+  out.push(line('Office','','','','','Head of the Department'));
+  const name = `teaching-roster-${monthName.replace(/\s+/g,'-')}${ui.course==='all'?'':'-'+course(ui.course).short.replace(/\W+/g,'-')}.csv`;
+  download(name, '﻿'+out.join('\r\n'), 'text/csv');
+  toast(`${monthName} saved as ${name}. Open it in Excel to edit and print.`);
+}
+
 function printRoster(){
   const el = document.getElementById('printdoc');
   el.innerHTML = printDoc();
@@ -858,9 +907,11 @@ function viewRoster(){
   <h2 class="print-title">${esc(cname)}: ${title}</h2>
   ${ui.view==='table' ? tableHTML(from,to,list) : calendarHTML(from,to,first,last,list)}
   <div class="row-actions no-print">
-    <button class="btn primary" data-act="printroster">Print the roster for ${esc(parse(ui.anchor).toLocaleDateString('en-IN',{month:'long',year:'numeric'}))}</button>
+    ${(()=>{ const m = MONTHS_FULL[parse(ui.anchor).getMonth()] + ' ' + parse(ui.anchor).getFullYear();
+      return `<button class="btn primary" data-act="rostercsv">Download ${esc(m)} as CSV</button>
+      <button class="btn" data-act="printroster">Print ${esc(m)}</button>`; })()}
     <button class="btn" data-act="print">Print this page as it looks</button>
-    <button class="btn" data-act="csv">Download as CSV (Excel)</button>
+    <button class="btn" data-act="csv">Download the week in full (CSV)</button>
     ${ui.teacher!=='all'?`<button class="btn" data-act="ics">Add ${esc(person(ui.teacher)?.name||'')}'s classes to phone calendar (.ics)</button>`:''}
     ${ui.edit && unassigned?`<button class="btn primary" data-act="fillview">Fill ${unassigned} empty slot${unassigned===1?'':'s'}</button>`:''}
   </div>`;
@@ -1939,6 +1990,7 @@ function act(a, el){
     case 'delsess': if(!confirm('Delete this class?')) return; S.sessions=S.sessions.filter(s=>s.id!==id); save(); toast('Class deleted'); break;
     case 'print': window.print(); return;
     case 'printroster': printRoster(); return;
+    case 'rostercsv': rosterCSV(); return;
     case 'csv': exportCSV(); return;
     case 'covcsv': exportCovCSV(); return;
     case 'ics': exportICS(); return;
