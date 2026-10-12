@@ -763,8 +763,8 @@ function printDoc(){
     const day = list.filter(s=>s.date===x), h = holiday(x), bl = blocksOn(x);
     if(!day.length && !h) continue;
     const notes = [h?h.name:'', ...bl.map(b=>blocksLabel(b))].filter(Boolean).join(' · ');
-    rows += `<tr class="pd-day"><td colspan="8">${esc(longDate(x))}${notes?`<span class="pd-note">${esc(notes)}</span>`:''}</td></tr>`;
-    if(!day.length){ rows += `<tr class="pd-off"><td colspan="8">No class.</td></tr>`; continue; }
+    rows += `<tr class="pd-day"><td colspan="7">${esc(longDate(x))}${notes?`<span class="pd-note">${esc(notes)}</span>`:''}</td></tr>`;
+    if(!day.length){ rows += `<tr class="pd-off"><td colspan="7">No class.</td></tr>`; continue; }
     for(const s of day){
       const c = course(s.courseId), f = person(s.facultyId), aw = away(s);
       const note = s.notHeld ? 'Not held' : (aw ? aw.reason : '');
@@ -773,14 +773,13 @@ function printDoc(){
         <td>${esc(c.short)}</td>
         <td>${esc(typeName(s.type))}</td>
         <td class="pd-c">${esc(s.batch==='All'?'All':bats(s).join(', '))}</td>
-        <td>${esc(s.topic||'—')}</td>
         <td>${esc(compsOf(s).join(', ')||'—')}</td>
         <td>${esc(s.venue||'—')}</td>
         <td>${esc(f ? f.name : (note || 'Not yet assigned'))}${note&&f?`<br><i>${esc(note)}</i>`:''}</td>
       </tr>`;
     }
   }
-  if(!rows) rows = `<tr><td colspan="8" style="text-align:center;padding:18px">No classes in ${esc(monthName)}.</td></tr>`;
+  if(!rows) rows = `<tr><td colspan="7" style="text-align:center;padding:18px">No classes in ${esc(monthName)}.</td></tr>`;
 
   const sub = [scope||'All courses', tf?tf+' only':'', who?'Classes of '+who:'',
     `${list.length} class${list.length===1?'':'es'}`, `${hSum(list).toFixed(1).replace('.0','')} teaching hours`]
@@ -795,9 +794,9 @@ function printDoc(){
   <p class="pd-title">Teaching Roster for the Month of ${esc(monthName)}</p>
   <p class="pd-sub">${esc(sub)}</p>
   <table class="pd">
-    <colgroup><col style="width:11.5%"><col style="width:7.5%"><col style="width:7.5%"><col style="width:5.5%">
-      <col style="width:26%"><col style="width:14%"><col style="width:12%"><col style="width:16%"></colgroup>
-    <thead><tr><th>Time</th><th>Course</th><th>Class</th><th>Batch</th><th>Topic</th><th>Competency</th><th>Venue</th><th>Teacher</th></tr></thead>
+    <colgroup><col style="width:13%"><col style="width:9%"><col style="width:9%"><col style="width:7%">
+      <col style="width:27%"><col style="width:15%"><col style="width:20%"></colgroup>
+    <thead><tr><th>Time</th><th>Course</th><th>Class</th><th>Batch</th><th>Competency</th><th>Venue</th><th>Teacher</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <div class="pd-foot">
