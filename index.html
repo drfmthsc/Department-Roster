@@ -198,6 +198,11 @@ input.dup{border-color:var(--bad);background:var(--bad-bg)}
 .cov td.ctext{min-width:260px}
 .cov td.na{color:var(--muted);background:var(--sunk);white-space:nowrap}
 .cov td.done small,.cov td.pend small{display:block;font-weight:500}
+.pnote{display:block;margin-top:4px;width:150px;font-size:.8rem;font-weight:400}
+.cov td.ccell{white-space:nowrap;vertical-align:top}
+.cov td.ccell span{display:block}
+.cov td.ccell span+span{font-weight:500;font-size:.85rem;opacity:.85}
+.cov td.done .pnote{color:var(--ink)}
 .need{font-size:.78rem;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;background:var(--sunk);color:var(--muted)}
 .need.theory{background:color-mix(in srgb,#3D5A99 16%,var(--surface));color:var(--ink)}
 .need.practical{background:repeating-linear-gradient(135deg,color-mix(in srgb,#A8662B 24%,var(--surface)) 0 3px,var(--surface) 3px 6px);color:var(--ink)}
@@ -237,10 +242,42 @@ details.allow label{display:flex;gap:6px;align-items:center;font-size:.85rem}
   table{min-width:0;font-size:11px}
   .cell{min-height:90px}
 }
+
+/* ===== the roster as a document to print and put on the notice board ===== */
+#printdoc{display:none}
+#printdoc *{box-sizing:border-box}
+.pd-head{text-align:center;border-bottom:2.5px solid #000;padding-bottom:7px;margin-bottom:0}
+.pd-inst{font-size:10.5pt;letter-spacing:.09em;text-transform:uppercase;margin:0 0 2px;color:#222}
+.pd-dept{font-size:16pt;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin:0;line-height:1.2}
+.pd-rule{height:1px;background:#000;margin-top:3px}
+.pd-title{text-align:center;font-size:12.5pt;font-weight:700;margin:11px 0 2px}
+.pd-sub{text-align:center;font-size:9.5pt;color:#333;margin:0 0 10px}
+table.pd{width:100%;border-collapse:collapse;font-size:8.6pt;table-layout:fixed}
+table.pd th{background:#e8e8e8;border:.8px solid #555;padding:4px 5px;text-align:left;font-weight:700;
+  font-size:8.4pt;text-transform:uppercase;letter-spacing:.03em}
+table.pd td{border:.8px solid #777;padding:2.5px 5px;vertical-align:top;line-height:1.25}
+table.pd td.pd-t{white-space:nowrap;font-variant-numeric:tabular-nums}
+table.pd tr.pd-day td{background:#d9d9d9;font-weight:700;font-size:9pt;padding:4px 6px;border-top:1.4px solid #333}
+table.pd tr.pd-day .pd-note{font-weight:400;font-style:italic;margin-left:8px}
+table.pd tr.pd-off td{background:#f4f4f4;font-style:italic;color:#444}
+table.pd td.pd-c{text-align:center}
+.pd-foot{margin-top:14px;page-break-inside:avoid}
+.pd-foot h3{font-size:10pt;margin:0 0 5px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #000;padding-bottom:2px}
+.pd-foot ol{margin:0;padding-left:18px;font-size:8.6pt;line-height:1.5}
+.pd-sign{display:flex;justify-content:space-between;margin-top:26px;font-size:9pt}
+.pd-sign div{text-align:center;min-width:180px;border-top:1px solid #000;padding-top:3px}
+@media print{
+  @page{size:A4 landscape;margin:11mm 10mm}
+  body.printing .wrap,body.printing .toast,body.printing dialog{display:none!important}
+  body.printing #printdoc{display:block;color:#000;background:#fff}
+  table.pd thead{display:table-header-group}
+  table.pd tr{page-break-inside:avoid}
+}
 </style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
+<div id="printdoc"></div>
 <script>
 window.addEventListener('error', function(e){
   var el = document.getElementById('app');
@@ -289,7 +326,7 @@ const CKEY = 'dept-roster-contacts-v1';
 let S = null;
 const ui = { tab:'roster', view:'table', course:'all', type:'all', teacher:'all', anchor:TODAY, edit:false,
   pf:{}, pfComps:[], wlRange:'term', covTopic:'all', covQ:'', covPending:false, msgWeek:addDays(monday(TODAY),7),
-  swapFilter:'all', covSide:'all', compQ:'', compTopic:'all', openAllow:null, allowType:{}, dlg:null, msgs:[], checks:null };
+  swapFilter:'all', covSide:'all', covCourse:'', covShown:[], compQ:'', compTopic:'all', openAllow:null, allowType:{}, dlg:null, msgs:[], checks:null };
 
 function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 3000); }
 let ME = {email:'', name:'', facultyId:'', isOffice:false, prefs:{weekly:true,daily:true,swaps:true}};
@@ -343,6 +380,7 @@ const MODES = [['theory','Theory only'],['practical','Practical only'],['both','
 function normalize(d){
   d.settings = d.settings || {}; d.ranks = d.ranks || []; d.faculty = d.faculty || []; d.courses = d.courses || [];
   d.sessions = d.sessions || []; d.holidays = d.holidays || []; d.blocks = d.blocks || []; d.competencies = d.competencies || []; d.swaps = d.swaps || [];
+  d.prior = d.prior || [];   /* competencies covered before this roster began */
   d.types = (d.types && d.types.length) ? d.types : DEFAULT_TYPES.map(t=>({...t}));
   d.types.forEach(t=>{ if(!t.counts) t.counts = t.style==='solid' ? 'theory' : 'practical'; });
   d.competencies.forEach(k=>{ if(!k.mode) k.mode = 'theory'; if(k.objectives==null) k.objectives = ''; });
@@ -350,7 +388,7 @@ function normalize(d){
   d.ranks.forEach(r=>{ if(!r.w){ r.w = {}; d.types.forEach(t=>r.w[t.id] = +r[t.id]||0); } d.types.forEach(t=>{ if(r.w[t.id]==null) r.w[t.id]=0; }); });
   d.holidays.forEach(h=>{ h.from = h.from || h.date || ''; h.to = h.to || h.from; delete h.date; });
   d.faculty.forEach(f=>{ f.leaves=f.leaves||[]; f.phone=f.phone||''; f.email=f.email||''; });
-  d.courses.forEach(c=>{ c.batches=c.batches||[]; c.allowed=c.allowed||[]; c.allowedByType=c.allowedByType||{}; c.targets=c.targets||{}; c.termStart=c.termStart||''; c.termEnd=c.termEnd||''; });
+  d.courses.forEach(c=>{ c.batches=c.batches||[]; c.allowed=c.allowed||[]; c.allowedByType=c.allowedByType||{}; c.targets=c.targets||{}; c.termStart=c.termStart||''; c.termEnd=c.termEnd||''; c.group=(c.group||'').trim(); });
   d.sessions.forEach(s=>{ s.comps=s.comps||[]; s.topic=s.topic||''; s.venue=s.venue||''; s.history=s.history||[]; s.notHeld=!!s.notHeld; });
   d.meta = d.meta || {};
   return d;
@@ -366,6 +404,13 @@ const typeOf = id => S.types.find(t=>t.id===id) || {id, name:id, style:'hatch', 
 const countsAs = s => typeOf(s.type).counts === 'practical' ? 'practical' : 'theory';
 const compOf = code => S.competencies.find(k=>k.code===code);
 const modesOf = code => { const k = compOf(code); return k && k.mode==='both' ? ['theory','practical'] : [k ? k.mode : 'theory']; };
+/* Courses that share a group are two parts of one syllabus, like Forensic Medicine
+   taught in 2nd Prof and again in 3rd Prof with a single exam at the end. */
+const groups = () => [...new Set(S.courses.map(c=>c.group).filter(Boolean))];
+const inGroup = g => S.courses.filter(c=>c.group===g);
+const isGroup = v => typeof v==='string' && v.startsWith('grp:');
+const groupOf = v => isGroup(v) ? v.slice(4) : '';
+const priorOf = (g, code) => S.prior.find(p=>p.group===g && p.code===code);
 /* a tag may be a single code or a range such as "FM 3.1-3.12", which stands for
    every code in the list between the two ends */
 function expandComps(list){
@@ -439,8 +484,8 @@ function sample(){
   ].map(([name,rank]) => ({id:uid(), name, rank, active:true, leaves:[], phone:'', email:''}));
   const L12 = ['A','B','C','D','E','F','G','H','I','J','K','L'];
   const courses = [
-    {id:'mb2',  name:'MBBS 2nd Prof (Batch 2025)', short:'MBBS II', color:'#2F7A64', batches:['A','B'], allowed:[], termStart:'2026-09-01', termEnd:'2027-08-05', targets:{practical:25}},
-    {id:'mb3',  name:'MBBS 3rd Phase Part I (Batch 2024)', short:'MBBS III', color:'#3D5A99', batches:L12, allowed:[], termStart:'2026-09-24', termEnd:'2027-08-01', targets:{aetcom:10}},
+    {id:'mb2',  name:'MBBS 2nd Prof (Batch 2025)', short:'MBBS II', color:'#2F7A64', batches:['A','B'], allowed:[], group:'MBBS', termStart:'2026-09-01', termEnd:'2027-08-05', targets:{practical:25}},
+    {id:'mb3',  name:'MBBS 3rd Phase Part I (Batch 2024)', short:'MBBS III', color:'#3D5A99', batches:L12, allowed:[], group:'MBBS', termStart:'2026-09-24', termEnd:'2027-08-01', targets:{aetcom:10}},
     {id:'mrit', name:'B.MRIT 1st Semester (Batch 2026)', short:'B.MRIT', color:'#A8662B', batches:[], allowed:[], termStart:'2026-08-10', termEnd:'2027-01-31', targets:{}},
     {id:'rtt',  name:'B.RTT 1st Semester (Batch 2026)', short:'B.RTT', color:'#6B5B95', batches:[], allowed:[], termStart:'2026-08-10', termEnd:'2027-01-31', targets:{}}
   ];
@@ -486,7 +531,7 @@ function sample(){
   ];
   S = normalize({ settings:{dept:'Department of Forensic Medicine & Toxicology', inst:'Himalayan Institute of Medical Sciences, SRHU',
       termStart:'2026-09-01', termEnd:'2027-08-05', clerkPhone:'', clerkEmail:'', pinHash:''},
-      types, ranks, faculty, courses, sessions:[], holidays, blocks, rotations, competencies, swaps:[], meta:{} });
+      types, ranks, faculty, courses, sessions:[], holidays, blocks, rotations, competencies, prior:[], swaps:[], meta:{} });
 
   const mk = (o) => { const s = {id:uid(), comps:[], topic:'', venue:'', facultyId:'', locked:false, history:[], notHeld:false, ...o};
     if(holiday(s.date) || away(s) || !inTerm(s)) return; S.sessions.push(s); };
@@ -680,6 +725,96 @@ function tableHTML(from, to, list){
   return `<div class="tbl-wrap"><table class="${ui.edit?'wide':''}"><thead><tr><th>Time</th><th>Course</th><th>Class</th><th>Batch</th><th>Topic</th><th>Competency</th><th>Venue</th><th>Teacher</th><th class="no-print"></th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+/* ============ the roster as a document to print ============
+   Not the backup file. This drops everything the reader does not need and
+   lays one month out on landscape paper, ready for the notice board. */
+const DEFAULT_RULES = [
+  'This roster is issued by the office and approved by the Head of the Department.',
+  'A teacher who cannot take a class must arrange a mutual exchange with a colleague and inform the office before the class.',
+  'An exchange agreed between two teachers takes effect only once it is recorded in the online roster.',
+  'Teachers are requested to reach the venue five minutes before the hour.',
+  'The topic taught and the attendance are to be recorded on the day of the class.',
+  'Competency codes are those of the NMC competency-based curriculum.',
+  'No class is held on a declared holiday, or for a batch marked away on clinical posting or examination.'
+];
+const rulesList = () => (S.settings.rules || DEFAULT_RULES.join('\n')).split('\n').map(x=>x.trim()).filter(Boolean);
+/* "9:00 – 10:00 am" when both ends share the half of the day, else both get it */
+function span12(a, b){
+  const A = t12(a), B = t12(b), sa = A.slice(-2), sb = B.slice(-2);
+  return sa===sb ? `${A.slice(0,-3)} – ${B}` : `${A} – ${B}`;
+}
+const longDate = d => { const p = parse(d);
+  return `${DAYS_FULL[p.getDay()]}, ${p.getDate()} ${MONTHS_FULL[p.getMonth()]} ${p.getFullYear()}`; };
+const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function printDoc(){
+  const d = parse(ui.anchor);
+  const from = iso(new Date(d.getFullYear(), d.getMonth(), 1));
+  const to   = iso(new Date(d.getFullYear(), d.getMonth()+1, 0));
+  const monthName = d.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const list = visible(from, to).sort(byTime);
+  const scope = ui.course==='all' ? '' : course(ui.course).name;
+  const tf = ui.type==='all' ? '' : typeName(ui.type);
+  const who = ui.teacher==='all' ? '' : (person(ui.teacher)||{}).name;
+
+  let rows = '';
+  for(let x=from; x<=to; x=addDays(x,1)){
+    const day = list.filter(s=>s.date===x), h = holiday(x), bl = blocksOn(x);
+    if(!day.length && !h) continue;
+    const notes = [h?h.name:'', ...bl.map(b=>blocksLabel(b))].filter(Boolean).join(' · ');
+    rows += `<tr class="pd-day"><td colspan="8">${esc(longDate(x))}${notes?`<span class="pd-note">${esc(notes)}</span>`:''}</td></tr>`;
+    if(!day.length){ rows += `<tr class="pd-off"><td colspan="8">No class.</td></tr>`; continue; }
+    for(const s of day){
+      const c = course(s.courseId), f = person(s.facultyId), aw = away(s);
+      const note = s.notHeld ? 'Not held' : (aw ? aw.reason : '');
+      rows += `<tr${note?' class="pd-off"':''}>
+        <td class="pd-t">${esc(span12(s.start, s.end))}</td>
+        <td>${esc(c.short)}</td>
+        <td>${esc(typeName(s.type))}</td>
+        <td class="pd-c">${esc(s.batch==='All'?'All':bats(s).join(', '))}</td>
+        <td>${esc(s.topic||'—')}</td>
+        <td>${esc(compsOf(s).join(', ')||'—')}</td>
+        <td>${esc(s.venue||'—')}</td>
+        <td>${esc(f ? f.name : (note || 'Not yet assigned'))}${note&&f?`<br><i>${esc(note)}</i>`:''}</td>
+      </tr>`;
+    }
+  }
+  if(!rows) rows = `<tr><td colspan="8" style="text-align:center;padding:18px">No classes in ${esc(monthName)}.</td></tr>`;
+
+  const sub = [scope||'All courses', tf?tf+' only':'', who?'Classes of '+who:'',
+    `${list.length} class${list.length===1?'':'es'}`, `${hSum(list).toFixed(1).replace('.0','')} teaching hours`]
+    .filter(Boolean).join('   •   ');
+
+  return `
+  <div class="pd-head">
+    ${S.settings.inst?`<p class="pd-inst">${esc(S.settings.inst)}</p>`:''}
+    <p class="pd-dept">${esc(S.settings.dept)}</p>
+    <div class="pd-rule"></div>
+  </div>
+  <p class="pd-title">Teaching Roster for the Month of ${esc(monthName)}</p>
+  <p class="pd-sub">${esc(sub)}</p>
+  <table class="pd">
+    <colgroup><col style="width:11.5%"><col style="width:7.5%"><col style="width:7.5%"><col style="width:5.5%">
+      <col style="width:26%"><col style="width:14%"><col style="width:12%"><col style="width:16%"></colgroup>
+    <thead><tr><th>Time</th><th>Course</th><th>Class</th><th>Batch</th><th>Topic</th><th>Competency</th><th>Venue</th><th>Teacher</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="pd-foot">
+    <h3>General Instructions</h3>
+    <ol>${rulesList().map(r=>`<li>${esc(r)}</li>`).join('')}</ol>
+    <div class="pd-sign"><div>Office</div><div>Head of the Department</div></div>
+  </div>`;
+}
+function printRoster(){
+  const el = document.getElementById('printdoc');
+  el.innerHTML = printDoc();
+  document.body.classList.add('printing');
+  const done = () => { document.body.classList.remove('printing'); el.innerHTML=''; window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  setTimeout(()=>window.print(), 60);
+}
+
 function calendarHTML(from, to, first, last, list){
   let html = DAYS.map(d=>`<div class="h">${d}</div>`).join('');
   for(let d=from; d<=to; d=addDays(d,1)){
@@ -725,7 +860,8 @@ function viewRoster(){
   <h2 class="print-title">${esc(cname)}: ${title}</h2>
   ${ui.view==='table' ? tableHTML(from,to,list) : calendarHTML(from,to,first,last,list)}
   <div class="row-actions no-print">
-    <button class="btn" data-act="print">Print or save as PDF</button>
+    <button class="btn primary" data-act="printroster">Print the roster for ${esc(parse(ui.anchor).toLocaleDateString('en-IN',{month:'long',year:'numeric'}))}</button>
+    <button class="btn" data-act="print">Print this page as it looks</button>
     <button class="btn" data-act="csv">Download as CSV (Excel)</button>
     ${ui.teacher!=='all'?`<button class="btn" data-act="ics">Add ${esc(person(ui.teacher)?.name||'')}'s classes to phone calendar (.ics)</button>`:''}
     ${ui.edit && unassigned?`<button class="btn primary" data-act="fillview">Fill ${unassigned} empty slot${unassigned===1?'':'s'}</button>`:''}
@@ -826,30 +962,99 @@ function covStatus(cid, code, b, which){
   const plan = parts.find(p=>p.k==='plan');
   return {k: plan ? 'plan' : 'pend', d: plan?plan.d:'', parts, want};
 }
+/* is this competency tagged on any class of this course at all, and on which side */
+const taughtIn = (cid, code) => S.sessions.some(s => s.courseId===cid && compsOf(s).includes(code));
+const sideTaught = (cid, code, m) => S.sessions.some(s => s.courseId===cid && countsAs(s)===m && compsOf(s).includes(code));
+/* one competency across a whole course: green only once every batch has had it */
+function covWhole(cid, code, side){
+  const c = course(cid), batches = c.batches.length ? c.batches : ['All'];
+  const per = batches.map(b=>covStatus(cid, code, b, side)).filter(x=>x.k!=='na');
+  if(!per.length) return {k:'na'};
+  const done = per.filter(x=>x.k==='done');
+  if(done.length===per.length) return {k:'done', d:done.map(x=>x.d).sort().pop(), n:done.length, of:per.length};
+  const plan = per.find(x=>x.k==='plan');
+  return {k: plan?'plan':'pend', d: plan?plan.d:'', n:done.length, of:per.length};
+}
+/* the whole syllabus for a group of courses. A competency may be taught more than
+   once, in both Profs; each side counts as covered as soon as any course has held it,
+   and the "covered earlier" tick stands in for teaching done before this roster. */
+function covCombined(g, code, side){
+  const cs = inGroup(g), need = modesOf(code);
+  const want = (!side || side==='all') ? need : (need.includes(side) ? [side] : []);
+  if(!want.length) return {k:'na', want:[], cells:cs.map(()=>({k:'na'}))};
+  const pr = priorOf(g, code);
+  /* each course is judged only on the side or sides it actually teaches, because a
+     competency may get its lecture in one Prof and its practical in the other */
+  const cells = cs.map(c => {
+    const bits = want.map(m => ({m, x: sideTaught(c.id, code, m) ? covWhole(c.id, code, m) : {k:'none'}}));
+    const live = bits.filter(b=>b.x.k!=='none' && b.x.k!=='na');
+    if(!live.length) return {k:'none'};
+    const done = live.filter(b=>b.x.k==='done');
+    return {k: done.length===live.length ? 'done' : (live.some(b=>b.x.k==='plan') ? 'plan' : 'pend'),
+      bits, d: done.map(b=>b.x.d).sort().pop()||''};
+  });
+  const per = want.map(m => {
+    const hit = cs.filter(c=>sideTaught(c.id, code, m)).map(c => covWhole(c.id, code, m));
+    const done = hit.filter(x=>x.k==='done');
+    if(pr || done.length) return {k:'done', d:done.map(x=>x.d).sort().pop()||'', n:done.length};
+    const plan = hit.find(x=>x.k==='plan');
+    return {k: plan?'plan':'pend', d: plan?plan.d:'', n:0};
+  });
+  const left = want.filter((m,i)=>per[i].k!=='done');
+  /* a repeat is one side finished in more than one course, not a lecture here and a
+     practical there, which together make up a single covering */
+  const times = Math.max(pr?1:0, ...per.map(p=>p.n||0));
+  if(!left.length) return {k:'done', cells, prior:pr, want, per, times, d:per.map(p=>p.d).filter(Boolean).sort().pop()||''};
+  const plan = per.find(p=>p.k==='plan');
+  return {k: plan?'plan':'pend', cells, prior:pr, want, per, times, d: plan?plan.d:'',
+    note: left.length<want.length ? left.join(' and ')+' left' : ''};
+}
+/* one course's cell in the combined table, in words. A competency needing both sides
+   gets a line each, so a course that gave the lecture is not called pending for a
+   practical that belongs to the other Prof. */
+function covCellLines(x){
+  if(x.k==='na') return ['Not needed'];
+  if(x.k==='none') return ['Not on this roster'];
+  const many = x.bits.length > 1;
+  return x.bits.map(b=>{
+    const nm = many ? (b.m==='theory' ? 'Theory: ' : 'Practical: ') : '';
+    if(b.x.k==='none') return nm ? nm+'not here' : 'Not on this roster';
+    if(b.x.k==='done') return nm ? nm+'done '+nice(b.x.d,{day:'numeric',month:'short'}) : 'Done '+nice(b.x.d,{day:'numeric',month:'short'});
+    const tail = b.x.of>1 ? `${b.x.n} of ${b.x.of} batches` : 'pending';
+    return nm ? nm+tail : (b.x.of>1 ? `Pending (${b.x.n} of ${b.x.of} batches)` : 'Pending');
+  });
+}
+const covCellTd = x => `<td class="ccell ${x.k==='na'||x.k==='none'?'na':x.k==='done'?'done':x.k==='plan'?'plan':'pend'}">${covCellLines(x).map(t=>`<span>${esc(t)}</span>`).join('')}</td>`;
 /* a short note on what is still missing, for a competency needing both sides */
 function covNote(st){
   if(!st.parts || st.parts.length<2) return '';
   const left = st.want.filter((m,i)=>st.parts[i].k!=='done');
   return left.length && left.length<st.want.length ? left.join(' and ')+' left' : '';
 }
-const covCourse = () => ui.course!=='all' && S.courses.some(c=>c.id===ui.course) ? ui.course : S.courses[0]?.id;
-function viewComps(){
-  const cid = covCourse();
-  if(!cid) return `<div class="panel"><h2>Competencies</h2><p class="lead">Add a course under Setup first.</p></div>`;
-  const c = course(cid), batches = c.batches.length ? c.batches : ['All'];
-  const topics = [...new Set(S.competencies.map(k=>k.topic))];
-  const q = ui.covQ.toLowerCase();
-  const side = ui.covSide || 'all';
+/* what the Competencies tab is looking at: a whole syllabus group, or one course */
+function covSel(){
+  const v = ui.covCourse;
+  if(isGroup(v) && groups().includes(groupOf(v))) return v;
+  if(S.courses.some(c=>c.id===v)) return v;
+  const g = groups();
+  return g.length ? 'grp:'+g[0] : (S.courses[0]?.id || '');
+}
+function covPills(cur){
+  return `<div class="courses" role="group" aria-label="What to show">
+    ${groups().map(g=>`<button class="all" data-act="covcourse" data-v="grp:${esc(g)}" aria-pressed="${cur==='grp:'+g}">Whole ${esc(g)} syllabus</button>`).join('')}
+    ${S.courses.map(c=>`<button style="--c:${c.color}" data-act="covcourse" data-v="${c.id}" aria-pressed="${cur===c.id}">${esc(c.name)}</button>`).join('')}
+  </div>`;
+}
+/* the competencies the filters leave on screen */
+function covList(){
+  const q = ui.covQ.toLowerCase(), side = ui.covSide || 'all';
   let list = S.competencies.filter(k => (ui.covTopic==='all' || k.topic===ui.covTopic) && (!q || (k.code+' '+k.text+' '+(k.objectives||'')).toLowerCase().includes(q)));
   if(side!=='all') list = list.filter(k=>modesOf(k.code).includes(side));
-  const grid = list.map(k => ({k, st: batches.map(b=>covStatus(cid,k.code,b,side))}));
-  const shown = ui.covPending ? grid.filter(r=>r.st.some(x=>x.k==='plan'||x.k==='pend')) : grid;
-  const sideWord = side==='theory' ? 'taught in a lecture' : side==='practical' ? 'practised in a practical' : 'covered';
-  const demo = !S.competencies.length || S.competencies.some(k=>k.code.startsWith('DEMO'));
-  return `
-  ${coursePills(true, cid)}
-  ${demo?`<div class="notice">${S.competencies.length?'The competency list here is a <b>demo list</b>.':'The competency list is <b>empty</b>.'} Download the sample file, fill in the NMC competencies and upload it.${ui.edit?`<div class="row-actions"><button class="btn" data-act="comptemplate">Download sample file</button><button class="btn primary" data-act="compimport">Upload filled file</button></div>`:' Turn on Office mode to upload it.'}</div>`:''}
-  <div class="bar">
+  return list;
+}
+function covBar(topics){
+  const side = ui.covSide || 'all';
+  return `<div class="bar">
     <select data-ch="covside" aria-label="Coverage of">
       <option value="all">Everything each competency needs</option>
       <option value="theory" ${side==='theory'?'selected':''}>Theory only</option>
@@ -861,12 +1066,82 @@ function viewComps(){
     <span class="grow"></span>
     <button class="btn" data-act="covcsv">Download as CSV (Excel)</button>
     <button class="btn" data-act="print">Print</button>
+  </div>`;
+}
+const covDemoNote = () => {
+  const demo = !S.competencies.length || S.competencies.some(k=>k.code.startsWith('DEMO'));
+  if(!demo) return '';
+  return `<div class="notice">${S.competencies.length?'The competency list here is a <b>demo list</b>.':'The competency list is <b>empty</b>.'} Download the sample file, fill in the NMC competencies and upload it.${ui.edit?`<div class="row-actions"><button class="btn" data-act="comptemplate">Download sample file</button><button class="btn primary" data-act="compimport">Upload filled file</button></div>`:' Turn on Office mode to upload it.'}</div>`;
+};
+function viewComps(){
+  const sel = covSel();
+  if(!sel) return `<div class="panel"><h2>Competencies</h2><p class="lead">Add a course under Setup first.</p></div>`;
+  return isGroup(sel) ? viewCompsGroup(groupOf(sel)) : viewCompsCourse(sel);
+}
+
+/* ---- one syllabus, taught across more than one course ---- */
+function viewCompsGroup(g){
+  const cs = inGroup(g);
+  const topics = [...new Set(S.competencies.map(k=>k.topic))];
+  const side = ui.covSide || 'all';
+  const grid = covList().map(k => ({k, st: covCombined(g, k.code, side)}));
+  const shown = ui.covPending ? grid.filter(r=>r.st.k==='plan'||r.st.k==='pend') : grid;
+  ui.covShown = shown.map(r=>r.k.code);
+  const rel = grid.filter(r=>r.st.k!=='na');
+  const done = rel.filter(r=>r.st.k==='done').length;
+  const twice = rel.filter(r=>r.st.times>1).length;
+  const marked = rel.filter(r=>r.st.prior).length;
+  return `
+  ${covPills('grp:'+g)}
+  ${covDemoNote()}
+  ${covBar(topics)}
+  <div class="stats">
+    <div>Whole syllabus: <span class="ok"><b>${done}</b>covered</span>, <span class="bad2"><b>${rel.length-done}</b>pending</span></div>
+    ${cs.map(c=>{ const n = grid.filter(r=>r.st.cells[cs.indexOf(c)]?.k==='done').length;
+      return `<div>${esc(c.short)}: <b>${n}</b> held</div>`; }).join('')}
+    <div>Taught in more than one: <b>${twice}</b></div>
+    <div>Ticked as covered earlier: <b>${marked}</b></div>
   </div>
+  <p class="help">This is the whole ${esc(g)} syllabus, counted across ${cs.map(c=>esc(c.short)).join(' and ')} together, because it is one syllabus with one exam at the end. A competency turns green once it has been held in <b>any</b> of these courses, and a competency taught in more than one is normal, not a mistake: every column that has held it shows green. A course column reads "Not on this roster" when no class there carries that code. Teaching done before this roster began is recorded with the <b>Covered earlier</b> tick. For the batch-by-batch picture, pick a single course above.</p>
+  ${ui.edit?`<div class="row-actions" style="margin-bottom:10px">
+    <button class="btn" data-act="priorbulk">Mark the ${shown.length} shown as covered earlier</button>
+    <button class="btn" data-act="priorclear">Clear that mark from the ${shown.length} shown</button>
+    <span class="help">Choose a topic above first to do one topic at a time.</span></div>`:''}
+  <h2 class="print-title">${esc(g)}: competency coverage across ${cs.map(c=>esc(c.short)).join(' and ')}</h2>
+  <div class="tbl-wrap"><table class="cov">
+    <thead><tr><th>Code</th><th>Competency</th><th>Needs</th>${cs.map(c=>`<th>${esc(c.short)}</th>`).join('')}<th>Covered earlier</th><th>Whole syllabus</th></tr></thead>
+    <tbody>${shown.length? shown.map(r=>{ const st=r.st, pr=st.prior; return `<tr><td><b>${esc(r.k.code)}</b></td>
+      <td class="ctext">${esc(r.k.text)}${r.k.objectives?`<br><span class="help">Objectives ${esc(r.k.objectives)}</span>`:''}</td>
+      <td><span class="need ${r.k.mode}">${r.k.mode==='both'?'Theory + practical':r.k.mode==='practical'?'Practical':'Theory'}</span></td>
+      ${st.cells.map(covCellTd).join('')}
+      <td class="${pr?'done':''}">${ui.edit
+        ? `<label style="display:flex;gap:5px;align-items:center"><input type="checkbox" data-ch="priortick" data-f="${esc(r.k.code)}" ${pr?'checked':''}> Yes</label>${pr?`<input type="text" class="pnote" value="${esc(pr.note||'')}" data-ch="priornote" data-f="${esc(r.k.code)}" placeholder="when and for whom">`:''}`
+        : (pr ? `Yes${pr.note?`<small>${esc(pr.note)}</small>`:''}` : `<span class="help">No</span>`)}</td>
+      ${st.k==='na'?`<td class="na">Not needed</td>`:
+        st.k==='done'?`<td class="done">Covered${st.times>1?`<small>taught ${st.times===2?'twice':st.times+' times'}</small>`:(st.d?`<small>${nice(st.d,{day:'numeric',month:'short'})}</small>`:'')}</td>`:
+        st.k==='plan'?`<td class="plan">Pending<small>${esc(st.note||'on roster for '+nice(st.d,{day:'numeric',month:'short'}))}</small></td>`:
+        `<td class="pend">Pending${st.note?`<small>${esc(st.note)}</small>`:''}</td>`}</tr>`; }).join('')
+      : `<tr><td colspan="${5+cs.length}"><div class="empty"><b>Nothing to show.</b>Change the topic, the search or the coverage filter, or load the competency list under Setup.</div></td></tr>`}</tbody>
+  </table></div>`;
+}
+
+/* ---- one course, batch by batch ---- */
+function viewCompsCourse(cid){
+  const c = course(cid), batches = c.batches.length ? c.batches : ['All'];
+  const topics = [...new Set(S.competencies.map(k=>k.topic))];
+  const side = ui.covSide || 'all';
+  const grid = covList().map(k => ({k, st: batches.map(b=>covStatus(cid,k.code,b,side))}));
+  const shown = ui.covPending ? grid.filter(r=>r.st.some(x=>x.k==='plan'||x.k==='pend')) : grid;
+  ui.covShown = shown.map(r=>r.k.code);
+  return `
+  ${covPills(cid)}
+  ${covDemoNote()}
+  ${covBar(topics)}
   <div class="stats">
     ${batches.map((b,i)=>{ const rel = grid.filter(r=>r.st[i].k!=='na'); const done = rel.filter(r=>r.st[i].k==='done').length;
       return `<div>${esc(batchLabel(b))}: <span class="ok"><b>${done}</b>done</span>, <span class="bad2"><b>${rel.length-done}</b>pending</span></div>`; }).join('')}
   </div>
-  <p class="help">Each competency says what it needs: a lecture, a practical, or both. It turns green for a batch once everything it needs has been held for that batch. A whole-class lecture counts for every batch, except one that was away that day, and a class marked "not held" does not count. Red means pending, and stays red until the class is actually held, even when it is already on the roster. Which class types count as theory and which as practical is set under Setup, in Class types.</p>
+  <p class="help">Each competency says what it needs: a lecture, a practical, or both. It turns green for a batch once everything it needs has been held for that batch. A whole-class lecture counts for every batch, except one that was away that day, and a class marked "not held" does not count. Red means pending, and stays red until the class is actually held, even when it is already on the roster. Which class types count as theory and which as practical is set under Setup, in Class types.${c.group?` This course is one part of the <b>${esc(c.group)}</b> syllabus, so a competency that looks pending here may already have been taught in the other Prof. The "Whole ${esc(c.group)} syllabus" view above counts them together.`:''}</p>
   <h2 class="print-title">${esc(c.name)}: competency coverage</h2>
   <div class="tbl-wrap"><table class="cov">
     <thead><tr><th>Code</th><th>Competency</th><th>Needs</th>${batches.map(b=>`<th>${esc(batchLabel(b))}</th>`).join('')}</tr></thead>
@@ -1127,7 +1402,13 @@ function viewSetup(){
       <label>Office WhatsApp number<input type="text" value="${esc(s.clerkPhone||'')}" data-ch="set" data-f="clerkPhone" placeholder="10-digit mobile"></label>
       <label>Office email<input type="text" value="${esc(s.clerkEmail||'')}" data-ch="set" data-f="clerkEmail"></label>
     </div>
-    <p class="help">Sign-in is by Google account. Editing rights come from the Office column on the faculty list below.</p>
+    <p class="help">Sign-in is by Google account. Editing rights come from the Office column on the faculty list below. The department name and the institution are what print at the top of the roster.</p>
+  </div>
+  <div class="panel">
+    <h2>General instructions on the printed roster</h2>
+    <p class="lead">These are printed at the foot of the monthly roster, under the heading "General Instructions", above the signature lines. One instruction to a line. Leave the box empty to go back to the standard seven.</p>
+    <textarea data-ch="set" data-f="rules" rows="8" style="width:100%;font:inherit;font-size:.9rem;padding:8px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--sunk);color:var(--ink)">${esc(s.rules || DEFAULT_RULES.join('\n'))}</textarea>
+    <p class="help">The roster prints on A4 landscape from the Roster tab. Pick the month with the arrows, then press "Print the roster for ...". Choose "Save as PDF" in the print window to keep a copy, or send it straight to the printer.</p>
   </div>
   <div class="panel">
     <h2>Class types</h2>
@@ -1170,12 +1451,13 @@ function viewSetup(){
   </div>
   <div class="panel">
     <h2>Courses and batches</h2>
-    <p class="lead">List batches separated by commas, for example A, B for 2nd Prof or A to L for 3rd Phase. Leave it empty for a course taught as one class. Under "Who can teach", tick names to limit a course to those teachers; with nobody ticked, everyone can take it. The dropdown inside keeps a separate list for one class type, so MBBS theory can go to the senior staff while tutors still take the practicals and tutorials. A list made for a type decides for that type on its own. Each course keeps its own term dates, because the calendars differ. Hour targets are written as "Practical 25; AETCOM 10", and the tool warns as they are reached.</p>
-    <div class="tbl-wrap"><table><thead><tr><th>Colour</th><th>Course name</th><th>Short name</th><th>Batches</th><th>Term starts</th><th>Term ends</th><th>Hour targets</th><th>Who can teach</th><th></th></tr></thead><tbody>
+    <p class="lead">List batches separated by commas, for example A, B for 2nd Prof or A to L for 3rd Phase. Leave it empty for a course taught as one class. Under "Who can teach", tick names to limit a course to those teachers; with nobody ticked, everyone can take it. The dropdown inside keeps a separate list for one class type, so MBBS theory can go to the senior staff while tutors still take the practicals and tutorials. A list made for a type decides for that type on its own. Each course keeps its own term dates, because the calendars differ. Hour targets are written as "Practical 25; AETCOM 10", and the tool warns as they are reached. <b>Syllabus group</b> ties two courses together as one syllabus: Forensic Medicine is taught in 2nd Prof and again in 3rd Prof, with one exam at the end, so both carry the group "MBBS" and the Competencies tab then offers a single combined view. Leave it empty for a course that stands on its own.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Colour</th><th>Course name</th><th>Short name</th><th>Syllabus group</th><th>Batches</th><th>Term starts</th><th>Term ends</th><th>Hour targets</th><th>Who can teach</th><th></th></tr></thead><tbody>
     ${S.courses.map(c=>`<tr>
       <td><input type="color" value="${c.color}" data-ch="course" data-id="${c.id}" data-f="color" aria-label="Colour"></td>
       <td><input type="text" value="${esc(c.name)}" data-ch="course" data-id="${c.id}" data-f="name"></td>
       <td><input type="text" value="${esc(c.short)}" data-ch="course" data-id="${c.id}" data-f="short" style="width:110px"></td>
+      <td><input type="text" value="${esc(c.group||'')}" data-ch="course" data-id="${c.id}" data-f="group" list="groupnames" placeholder="none" style="width:100px"></td>
       <td><input type="text" value="${esc(c.batches.join(', '))}" data-ch="course" data-id="${c.id}" data-f="batches"></td>
       <td><input type="date" value="${c.termStart||''}" data-ch="course" data-id="${c.id}" data-f="termStart"></td>
       <td><input type="date" value="${c.termEnd||''}" data-ch="course" data-id="${c.id}" data-f="termEnd"></td>
@@ -1193,6 +1475,7 @@ function viewSetup(){
         </div></details></td>
       <td><button class="btn sm danger" data-act="delcourse" data-id="${c.id}">Delete</button></td></tr>`).join('')}
     </tbody></table></div>
+    <datalist id="groupnames">${groups().map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
     <div class="row-actions"><button class="btn" data-act="addcourse">Add course</button></div>
   </div>
   <div class="panel">
@@ -1642,6 +1925,7 @@ function act(a, el){
   switch(a){
     case 'tab': ui.tab=v; break;
     case 'course': ui.course=v; break;
+    case 'covcourse': ui.covCourse=v; break;
     case 'view': ui.view=v; break;
     case 'wl': ui.wlRange=v; break;
     case 'nav': {
@@ -1656,6 +1940,7 @@ function act(a, el){
     case 'lock': { const s=sess(id); s.locked=!s.locked; save(); break; }
     case 'delsess': if(!confirm('Delete this class?')) return; S.sessions=S.sessions.filter(s=>s.id!==id); save(); toast('Class deleted'); break;
     case 'print': window.print(); return;
+    case 'printroster': printRoster(); return;
     case 'csv': exportCSV(); return;
     case 'covcsv': exportCovCSV(); return;
     case 'ics': exportICS(); return;
@@ -1838,7 +2123,19 @@ function act(a, el){
       save(); toast(`Leave added.${clash.length?` ${clash.length} class${clash.length===1?'':'es'} handed to others.`:''}${kept?` ${kept} left with ${f.name} and flagged "On leave".`:''}`); break; }
     case 'delleave': person(id).leaves.splice(+el.dataset.i,1); save(); break;
     case 'allowtoggle': return;
-    case 'addcourse': S.courses.push({id:uid(),name:'New course',short:'NEW',color:'#6B5B95',batches:[],allowed:[]}); save(); break;
+    case 'addcourse': S.courses.push({id:uid(),name:'New course',short:'NEW',color:'#6B5B95',batches:[],allowed:[],group:''}); save(); break;
+    /* marking a whole topic, or whatever the filters are showing, as taught before this roster */
+    case 'priorbulk': { const g = groupOf(covSel()), codes = ui.covShown || [];
+      if(!codes.length){ toast('Nothing is on screen to mark.'); return; }
+      const note = prompt(`Mark these ${codes.length} competencies as covered earlier.\n\nA note saying when and for whom, which is shown beside each one:`, 'Taught in 2nd Prof, Batch 2024');
+      if(note===null) return;
+      codes.forEach(code=>{ const p = priorOf(g, code); if(p) p.note = note; else S.prior.push({group:g, code, note}); });
+      save(); toast(`${codes.length} marked as covered earlier.`); break; }
+    case 'priorclear': { const g = groupOf(covSel()), codes = new Set(ui.covShown || []);
+      const n = S.prior.filter(p=>p.group===g && codes.has(p.code)).length;
+      if(!n){ toast('None of these carries that mark.'); return; }
+      if(!confirm(`Remove the "covered earlier" mark from ${n} competenc${n===1?'y':'ies'}?`)) return;
+      S.prior = S.prior.filter(p=>!(p.group===g && codes.has(p.code))); save(); toast(`${n} cleared.`); break; }
     case 'delcourse': { const n=S.sessions.filter(s=>s.courseId===id).length;
       if(!confirm(`Delete this course${n?` and its ${n} classes`:''}?`)) return;
       S.courses=S.courses.filter(c=>c.id!==id); S.sessions=S.sessions.filter(s=>s.courseId!==id); S.blocks=S.blocks.filter(b=>b.courseId!==id); if(ui.course===id) ui.course='all'; save(); break; }
@@ -1928,6 +2225,13 @@ function change(c, el){
           if(ty) tg[ty.id] = +m[2]; else toast(`"${m[1].trim()}" is not a class type, so that target was left out`);
         });
         k.targets=tg; save(); break; }
+      if(f==='group'){
+        const was = k.group, now = el.value.trim();
+        k.group = now;
+        /* keep the "covered earlier" ticks with the group when it is renamed */
+        if(was && now && !S.courses.some(x=>x!==k && x.group===was)) S.prior.forEach(p=>{ if(p.group===was) p.group = now; });
+        if(ui.covCourse==='grp:'+was) ui.covCourse = now ? 'grp:'+now : '';
+        save(); break; }
       if(f!=='batches'){ k[f]=el.value; save(); break; }
       const old=k.batches, nw=el.value.split(',').map(x=>x.trim()).filter(Boolean);
       const removed=old.filter(b=>!nw.includes(b)), added=nw.filter(b=>!old.includes(b));
@@ -1949,6 +2253,11 @@ function change(c, el){
       ui.openAllow=id; save(); break; }
     case 'allowtype': { ui.allowType = ui.allowType||{}; ui.allowType[id] = el.value; ui.openAllow=id; break; }
     case 'bkcourse': ui.bkCourse = el.value; ui.bk = {f:document.getElementById('bk-f').value, t:document.getElementById('bk-t').value, r:document.getElementById('bk-r').value}; break;
+    case 'priortick': { const g = groupOf(covSel()), code = el.dataset.f, p = priorOf(g, code);
+      if(el.checked){ if(!p) S.prior.push({group:g, code, note:''}); }
+      else if(p) S.prior = S.prior.filter(x=>x!==p);
+      save(); break; }
+    case 'priornote': { const p = priorOf(groupOf(covSel()), el.dataset.f); if(p){ p.note = el.value; save(); } break; }
     case 'covtopic': ui.covTopic = el.value; break;
     case 'covq': ui.covQ = el.value; break;
     case 'covpend': ui.covPending = el.checked; break;
@@ -2061,14 +2370,26 @@ function exportCSV(){
   download(`roster-${ui.course==='all'?'all-courses':course(ui.course).short.replace(/\W+/g,'-')}-${a||f}.csv`, '\ufeff'+lines.join('\r\n'), 'text/csv');
 }
 function exportCovCSV(){
-  const c=course(covCourse()), batches=c.batches.length?c.batches:['All'];
   const q = x => `"${String(x??'').replace(/"/g,'""')}"`;
   const side = ui.covSide || 'all';
+  const sel = covSel();
+  const word = x => x.k==='na'?'Not needed':x.k==='none'?'Not on this roster':x.k==='done'?'Done '+x.d:x.k==='plan'?'Pending, on roster for '+x.d:'Pending';
+  if(isGroup(sel)){
+    const g = groupOf(sel), cs = inGroup(g);
+    const lines=[['Code','Topic','Competency','Objectives','Needs',...cs.map(c=>c.short),'Covered earlier','Note','Whole syllabus','Times taught'].map(q).join(',')];
+    S.competencies.forEach(k=>{ const st=covCombined(g,k.code,side);
+      lines.push([k.code,k.topic,k.text,k.objectives||'',
+        k.mode==='both'?'Theory and practical':k.mode==='practical'?'Practical':'Theory',
+        ...st.cells.map(x=>covCellLines(x).join('; ')), st.prior?'Yes':'No', st.prior?.note||'',
+        st.k==='na'?'Not needed':st.k==='done'?'Covered':st.note?'Pending, '+st.note:'Pending', st.times||0].map(q).join(',')); });
+    download(`competency-coverage-${g.replace(/\W+/g,'-')}-whole-syllabus.csv`, '\ufeff'+lines.join('\r\n'), 'text/csv');
+    return;
+  }
+  const c=course(sel), batches=c.batches.length?c.batches:['All'];
   const lines=[['Code','Topic','Competency','Objectives','Needs',...batches.map(batchLabel)].map(q).join(',')];
   S.competencies.forEach(k=>lines.push([k.code,k.topic,k.text,k.objectives||'',
     k.mode==='both'?'Theory and practical':k.mode==='practical'?'Practical':'Theory',
-    ...batches.map(b=>{const x=covStatus(c.id,k.code,b,side);
-      return x.k==='na'?'Not needed':x.k==='done'?'Done '+x.d:x.k==='plan'?'Pending, on roster for '+x.d:'Pending';})].map(q).join(',')));
+    ...batches.map(b=>word(covStatus(c.id,k.code,b,side)))].map(q).join(',')));
   download(`competency-coverage-${c.short.replace(/\W+/g,'-')}.csv`, '\ufeff'+lines.join('\r\n'), 'text/csv');
 }
 
@@ -2122,7 +2443,8 @@ function exportXLSX(){
     ['Classes: Competencies are codes separated by commas, e.g. FM2.1, FM2.2.'],
     ['Faculty: Leave is written as 05-10-2026 to 09-10-2026, with several periods separated by a semicolon. Phone numbers and emails are not kept in this file.'],
     ['Classes: Not held is Yes for a class that did not take place. Leave it empty otherwise.'],
-    ['Courses: Batches and Who can teach are separated by commas. An empty Who can teach means everyone. Each course has its own term dates. Hour targets are written as Practical 25; AETCOM 10.'],
+    ['Courses: Batches and Who can teach are separated by commas. An empty Who can teach means everyone. Each course has its own term dates. Hour targets are written as Practical 25; AETCOM 10. Two courses sharing a Syllabus group are counted as one syllabus on the Competencies tab.'],
+    ['Covered earlier: competencies already taught before this roster began, so they count as covered for that syllabus group.'],
     ['Ranks: one ratio column per class type. 0 means that rank is never given that type.'],
     ['Class types: Counts as decides which side of a competency a class satisfies, Theory or Practical.'],
     ['Competencies: Needs is Theory, Practical, or Both. A competency needing Both is covered only when a lecture and a practical have both been held.'],
@@ -2132,16 +2454,18 @@ function exportXLSX(){
   const names = S.faculty.map(f=>f.name.trim().toLowerCase()), dups = [...new Set(names.filter((n,i)=>names.indexOf(n)!==i))];
   if(dups.length && !confirm(`Two or more teachers share a name (${dups.join(', ')}). The Excel file can't tell them apart. Download anyway?`)) return;
   const stampNow = new Date().toISOString();
-  add('Department', [['Field','Value'],['Department name',S.settings.dept],['Institution',S.settings.inst],['Term starts',S.settings.termStart||''],['Term ends',S.settings.termEnd||''],['Office WhatsApp number',S.settings.clerkPhone||''],['Office email',S.settings.clerkEmail||''],['Office PIN (hashed)',S.settings.pinHash||''],['Saved at',stampNow]],[26,50]);
+  add('Department', [['Field','Value'],['Department name',S.settings.dept],['Institution',S.settings.inst],['Term starts',S.settings.termStart||''],['Term ends',S.settings.termEnd||''],['Office WhatsApp number',S.settings.clerkPhone||''],['Office email',S.settings.clerkEmail||''],['Office PIN (hashed)',S.settings.pinHash||''],['Printed roster instructions',S.settings.rules||''],['Saved at',stampNow]],[26,50]);
   add('Class types', [['Type','Shown as','Counts as'], ...S.types.map(t=>[t.name, t.style==='solid'?'Solid':'Hatched', t.counts==='practical'?'Practical':'Theory'])],[26,12,14]);
   add('Ranks', [['Rank', ...S.types.map(t=>t.name)], ...S.ranks.map(r=>[r.name, ...S.types.map(t=>r.w[t.id]||0)])],[28, ...S.types.map(()=>13)]);
   add('Faculty', [['Name','Rank','Active','Leave','ID'], ...S.faculty.map(f=>[f.name,rankOf(f)?.name||'',f.active!==false?'Yes':'No',f.leaves.map(l=>l.to&&l.to!==l.from?`${dmy(l.from)} to ${dmy(l.to)}`:dmy(l.from)).join('; '),f.id])],[24,24,8,40,10]);
-  add('Courses', [['Course','Short name','Colour','Batches','Term starts','Term ends','Hour targets','Who can teach','Who can teach, by class type','ID'],
+  add('Courses', [['Course','Short name','Colour','Batches','Term starts','Term ends','Hour targets','Who can teach','Who can teach, by class type','ID','Syllabus group'],
     ...S.courses.map(c=>[c.name,c.short,c.color,c.batches.join(', '),c.termStart||'',c.termEnd||'',
       Object.entries(c.targets||{}).filter(([,h])=>+h).map(([t,h])=>typeName(t)+' '+h).join('; '),
       c.allowed.map(nm).filter(Boolean).join(', '),
       Object.entries(c.allowedByType||{}).filter(([,v])=>(v||[]).length).map(([t,v])=>typeName(t)+': '+v.map(nm).filter(Boolean).join(', ')).join('; '),
-      c.id])],[28,12,10,30,14,14,22,50,50,10]);
+      c.id, c.group||''])],[28,12,10,30,14,14,22,50,50,10,16]);
+  add('Covered earlier', [['Syllabus group','Code','Competency','Note'],
+    ...S.prior.map(p=>[p.group, p.code, compOf(p.code)?.text||'', p.note||''])],[16,14,60,34]);
   add('Rotations', [['Course','Rotation','From','To','Batches with us'],
     ...S.rotations.flatMap(r=>r.entries.slice().sort((a,b)=>a.from.localeCompare(b.from)).map(e=>[course(r.courseId).short, r.name, e.from, e.to||e.from, e.batches.join(', ')]))],[14,30,14,14,20]);
   add('Batches away', [['Course','Who is away','From','To','Reason'], ...S.blocks.map(b=>[course(b.courseId).short,b.batches.includes('All')?'Whole class':b.batches.join(', '),b.from,b.to||b.from,b.reason])],[14,20,14,14,22]);
@@ -2161,9 +2485,9 @@ function fromWorkbook(wb){
   const rows = n => wb.Sheets[n] ? XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''}).slice(1).filter(r=>r.some(v=>String(v).trim()!=='')) : [];
   if(!wb.Sheets['Classes'] || !wb.Sheets['Faculty']) throw new Error('This Excel file is not a roster file. It needs the Classes and Faculty sheets.');
   const warn = [], key = v => String(v||'').trim().toLowerCase();
-  const d = {settings:{}, types:[], ranks:[], faculty:[], courses:[], sessions:[], holidays:[], blocks:[], rotations:[], competencies:[], swaps:[], meta:{}};
+  const d = {settings:{}, types:[], ranks:[], faculty:[], courses:[], sessions:[], holidays:[], blocks:[], rotations:[], competencies:[], prior:[], swaps:[], meta:{}};
   const dep = {}; rows('Department').forEach(r=>dep[key(r[0])]=r[1]);
-  d.settings = {dept:String(dep['department name']||''), inst:String(dep['institution']||''), termStart:xdate(dep['term starts']), termEnd:xdate(dep['term ends']), clerkPhone:String(dep['office whatsapp number']||''), clerkEmail:String(dep['office email']||''), pinHash:String(dep['office pin (hashed)']||dep['clerk pin (hashed)']||'')};
+  d.settings = {dept:String(dep['department name']||''), inst:String(dep['institution']||''), termStart:xdate(dep['term starts']), termEnd:xdate(dep['term ends']), clerkPhone:String(dep['office whatsapp number']||''), clerkEmail:String(dep['office email']||''), pinHash:String(dep['office pin (hashed)']||dep['clerk pin (hashed)']||''), rules:String(dep['printed roster instructions']||'')};
   d.meta = {savedAt:String(dep['saved at']||''), dirty:false};
   /* class types first: the rank ratios and the classes refer to them by name */
   rows('Class types').forEach(r=>{ const n=String(r[0]).trim(); if(!n) return;
@@ -2195,7 +2519,7 @@ function fromWorkbook(wb){
   const facBy = n => d.faculty.find(f=>key(f.name)===key(n));
   const ch = (XLSX.utils.sheet_to_json(wb.Sheets['Courses']||{},{header:1,defval:''})[0]||[]).map(key);
   const ccol = (n,dflt) => { const i=ch.findIndex(h=>h.startsWith(n)); return i>=0?i:dflt; };
-  const kWho=ccol('who can teach',4), kId=ccol('id',5), kTs=ccol('term starts',-1), kTe=ccol('term ends',-1), kTg=ccol('hour target',-1);
+  const kWho=ccol('who can teach',4), kId=ccol('id',5), kTs=ccol('term starts',-1), kTe=ccol('term ends',-1), kTg=ccol('hour target',-1), kGr=ccol('syllabus group',-1);
   const kWhoT=ch.findIndex(h=>h.startsWith('who can teach, by'));
   rows('Courses').forEach(r=>{
     const allowedIds = String(r[kWho]||'').split(',').map(x=>x.trim()).filter(Boolean).map(n=>{ const f=facBy(n); if(!f) warn.push(`"${n}" under Who can teach is not on the Faculty sheet`); return f?.id; }).filter(Boolean);
@@ -2209,7 +2533,14 @@ function fromWorkbook(wb){
     });
     d.courses.push({id:String(r[kId]||'').trim()||uid(), name:String(r[0]).trim(), short:String(r[1]||r[0]).trim(), color:/^#[0-9a-f]{6}$/i.test(String(r[2]).trim())?String(r[2]).trim():'#6B5B95',
       batches:String(r[3]||'').split(',').map(x=>x.trim()).filter(Boolean), allowed:allowedIds, allowedByType,
-      termStart:kTs>=0?xdate(r[kTs]):'', termEnd:kTe>=0?xdate(r[kTe]):'', targets});
+      termStart:kTs>=0?xdate(r[kTs]):'', termEnd:kTe>=0?xdate(r[kTe]):'', targets,
+      group: kGr>=0 ? String(r[kGr]||'').trim() : ''});
+  });
+  rows('Covered earlier').forEach(r=>{
+    const g = String(r[0]||'').trim(), code = String(r[1]||'').trim();
+    if(!g || !code) return;
+    if(!d.courses.some(c=>c.group===g)) warn.push(`"${g}" on the Covered earlier sheet is not a syllabus group on any course, so ${code} was left out.`);
+    else if(!d.prior.some(p=>p.group===g && p.code===code)) d.prior.push({group:g, code, note:String(r[3]||'').trim()});
   });
   const courseBy = n => d.courses.find(c=>key(c.short)===key(n)||key(c.name)===key(n));
   const batchOf = v => { const t=String(v||'').trim(); return !t || /^whole/i.test(t) || /^all$/i.test(t) ? 'All' : t.replace(/^batch\s+/i,''); };
